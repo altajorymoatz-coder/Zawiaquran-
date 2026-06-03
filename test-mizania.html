@@ -1,1 +1,555 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>زاوية الشيخ عبد السلام النفاتي</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold:#c8a84b; --gold-light:#e8c97a; --gold-dark:#8a6f2e;
+  --green-deep:#0d3320; --green-mid:#1a5c38; --green-light:#2d8653;
+  --cream:#f5f0e8; --text-dark:#1a1208; --white:#fdfaf4;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Cairo',sans-serif;background:var(--green-deep);color:var(--cream);min-height:100vh;background-image:radial-gradient(ellipse at 20% 20%,rgba(200,168,75,.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(45,134,83,.12) 0%,transparent 80%);padding-bottom:60px;}
+.container{width:100%;max-width:1200px;margin:0 auto;padding:15px;}
+header{background:linear-gradient(135deg,var(--green-deep),var(--green-mid));padding:30px 15px;text-align:center;border-bottom:3px solid var(--gold);box-shadow:0 4px 20px rgba(0,0,0,.3);position:relative;margin-bottom:25px;border-radius:0 0 20px 20px;}
+header h1{font-family:'Amiri',serif;font-size:2.4rem;color:var(--gold-light);margin-bottom:8px;text-shadow:0 2px 4px rgba(0,0,0,.5);font-weight:700;}
+header p{font-size:.95rem;color:var(--cream);opacity:.9;letter-spacing:0.5px;}
+.date-badge{display:inline-block;background:rgba(200,168,75,.15);border:1px solid rgba(200,168,75,.3);padding:6px 16px;border-radius:50px;font-size:.85rem;color:var(--gold-light);margin-top:12px;}
+.nav-tabs{display:flex;background:rgba(13,51,32,.7);padding:6px;border-radius:15px;margin-bottom:25px;border:1px solid rgba(200,168,75,.2);gap:5px;overflow-x:auto;}
+.tab-btn{flex:1;background:none;border:none;color:var(--cream);padding:12px 8px;font-size:.9rem;font-weight:600;cursor:pointer;border-radius:10px;transition:all .25s ease;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;}
+.tab-btn.active{background:var(--gold);color:var(--green-deep);box-shadow:0 4px 10px rgba(200,168,75,.25);font-weight:700;}
+.tab-content{display:none;animation:fadeIn .4s ease forwards;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.card{background:linear-gradient(145deg,rgba(26,92,56,.4),rgba(13,51,32,.6));border:1px solid rgba(200,168,75,.15);border-radius:18px;padding:22px;margin-bottom:25px;box-shadow:0 8px 32px rgba(0,0,0,.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+.card-title{font-size:1.2rem;color:var(--gold-light);margin-bottom:18px;display:flex;align-items:center;gap:10px;font-weight:700;border-bottom:1px solid rgba(200,168,75,.1);padding-bottom:10px;}
+.form-group{margin-bottom:15px;display:flex;flex-direction:column;gap:6px;}
+label{font-size:.85rem;font-weight:600;color:var(--cream);opacity:.95;}
+input,select,textarea{background:rgba(13,51,32,.8);border:1px solid rgba(200,168,75,.3);border-radius:10px;padding:12px;color:var(--white);font-family:'Cairo',sans-serif;font-size:.95rem;transition:all .2s ease;width:100%;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold-light);box-shadow:0 0 0 3px rgba(232,201,122,.15);}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.btn{background:var(--gold);color:var(--green-deep);border:none;padding:12px 20px;font-size:.95rem;font-weight:700;border-radius:10px;cursor:pointer;transition:all .2s ease;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(200,168,75,.2);width:100%;}
+.btn:hover{background:var(--gold-light);transform:translateY(-1px);}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--gold);color:var(--green-deep);}
+.btn-secondary{background:rgba(200,168,75,.1);color:var(--gold-light);border:1px solid var(--gold);}
+.btn-danger{background:#bc3b3b;color:var(--white);box-shadow:0 4px 12px rgba(188,59,59,.2);}
+.btn-close{background:none;border:none;color:var(--cream);font-size:1.2rem;cursor:pointer;}
+.search-box{position:relative;margin-bottom:20px;}
+.search-box input{padding-right:40px;background:rgba(13,51,32,.5);}
+.search-box::after{content:"🔍";position:absolute;right:15px;top:50%;transform:translateY(-50%);opacity:.6;font-size:.95rem;}
+.student-list{display:grid;grid-template-columns:1fr;gap:12px;}
+@media(min-width:768px){.student-list{grid-template-columns:1fr 1fr;}}
+.student-card{background:rgba(26,92,56,.3);border:1px solid rgba(200,168,75,.1);border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:between;transition:all .2s ease;position:relative;overflow:hidden;}
+.student-card::before{content:"";position:absolute;top:0;right:0;width:4px;height:100%;background:var(--gold);opacity:.7;}
+.student-card:hover{border-color:var(--gold-light);background:rgba(26,92,56,.5);transform:translateY(-2px);}
+.s-info h3{font-size:1.1rem;color:var(--white);margin-bottom:6px;font-weight:700;}
+.s-info p{font-size:.8rem;color:var(--cream);opacity:.8;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.s-actions{display:flex;gap:8px;margin-top:12px;border-top:1px solid rgba(200,168,75,.08);padding-top:12px;}
+.s-actions .btn{padding:8px 12px;font-size:.8rem;border-radius:8px;}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(13,51,32,.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:1000;padding:15px;animation:fadeIn .2s ease;}
+.modal{background:var(--green-deep);border:2px solid var(--gold);border-radius:20px;width:100%;max-width:500px;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto;}
+.modal-header{display:flex;justify-content:between;align-items:center;margin-bottom:20px;border-bottom:1px solid rgba(200,168,75,.15);padding-bottom:10px;}
+.modal-title{font-size:1.15rem;font-weight:700;color:var(--gold-light);}
+.history-list{display:flex;flex-direction:column;gap:10px;margin-top:15px;}
+.log-item{background:rgba(26,92,56,.4);border:1px solid rgba(200,168,75,.08);border-radius:10px;padding:12px;display:flex;justify-content:between;align-items:center;font-size:.85rem;animation:fadeIn .3s ease;}
+.log-date{color:var(--gold-light);font-weight:600;}
+.log-detail{flex:1;margin:0 15px;color:var(--white);}
+.log-pages{background:rgba(200,168,75,.15);color:var(--gold-light);padding:4px 8px;border-radius:6px;font-weight:700;font-size:.8rem;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+@media(min-width:768px){.stat-grid{grid-template-columns:1fr 1fr 1fr 1fr;}}
+.stat-card{background:rgba(26,92,56,.3);border:1px solid rgba(200,168,75,.1);border-radius:14px;padding:15px;text-align:center;}
+.stat-val{font-size:1.6rem;font-weight:900;color:var(--gold-light);margin-bottom:2px;}
+.stat-lbl{font-size:.75rem;color:var(--cream);opacity:.8;font-weight:600;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--cream);opacity:.6;font-size:.9rem;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.empty-state::before{content:"🍃";font-size:2rem;}
+.loading-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--green-deep);z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;}
+.spinner{width:40px;height:40px;border:4px solid rgba(200,168,75,.2);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(3000deg);}}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div style="color:var(--gold-light);font-weight:600;font-size:.95rem;">جاري مزامنة بيانات الزاوية...</div>
+</div>
+
+<header>
+  <h1>زاوية الشيخ عبد السلام النفاتي</h1>
+  <p>منظومة إدارة ومتابعة طلاب الحلقات القرآنية</p>
+  <div class="date-badge" id="currentDate"></div>
+</header>
+
+<div class="container">
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('tab-students')">👥 الطلاب</button>
+    <button class="tab-btn" onclick="switchTab('tab-daily')">📝 الورد اليومي</button>
+    <button class="tab-btn" onclick="switchTab('tab-stats')">📊 الإحصائيات</button>
+  </div>
+
+  <div class="tab-content active" id="tab-students">
+    <div style="display:flex;gap:10px;margin-bottom:15px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="openModal('reg-modal')">➕ تسجيل طالب جديد</button>
+    </div>
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="ابحث عن اسم طالب..." oninput="renderStudents()">
+    </div>
+    <div class="student-list" id="students-container"></div>
+  </div>
+
+  <div class="tab-content" id="tab-daily">
+    <div class="card">
+      <div class="card-title">📝 تسجيل الورد اليومي</div>
+      <div class="form-group">
+        <label>الطالب *</label>
+        <select id="daily-student">
+          <option value="">-- اختر الطالب --</option>
+        </select>
+      </div>
+      <div class="g2">
+        <div class="form-group"><label>التاريخ</label><input type="date" id="daily-date"></div>
+        <div class="form-group"><label>عدد الصفحات</label><input type="number" id="daily-pages" min="0" value="1"></div>
+      </div>
+      <div class="form-group">
+        <label>السورة</label>
+        <select id="daily-surah-select"><option value="">-- اختر السورة --</option></select>
+      </div>
+      <div class="g2">
+        <div class="form-group"><label>من آية</label><input type="number" id="daily-ayah-from" min="0"></div>
+        <div class="form-group"><label>إلى آية</label><input type="number" id="daily-ayah-to" min="0"></div>
+      </div>
+      <div class="form-group"><label>ملاحظات التسميع</label><input type="text" id="daily-note" placeholder="ممتاز، يحتاج مراجعة، إلخ..."></div>
+      <button class="btn btn-primary" onclick="addDailyLog()">💾 حفظ الورد اليومي</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⏳ السجل الأخير للطالب</div>
+      <div id="history-container"><div class="empty-state">اختر طالباً لعرض سجله</div></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-stats">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-val" id="stat-total-students">0</div><div class="stat-lbl">إجمالي الطلاب</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-total-pages">0</div><div class="stat-lbl">الصفحات المسموعة</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-active-today">0</div><div class="stat-lbl">المسمعين اليوم</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-total-logs">0</div><div class="stat-lbl">عدد التسميعات</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📅 مراجعة التسميع بالتواريخ</div>
+      <div class="g2" style="margin-bottom:15px;">
+        <div class="form-group"><label>التاريخ</label><input type="date" id="review-date" onchange="renderReviewLogs()"></div>
+      </div>
+      <div class="history-list" id="review-logs-container"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reg-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">➕ تسجيل طالب جديد</span>
+      <button class="btn-close" onclick="closeModal('reg-modal')">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="form-group"><label>الاسم الكامل *</label><input type="text" id="reg-name" placeholder="اسم الطالب رباعي"></div>
+      <div class="g2">
+        <div class="form-group"><label>العمر</label><input type="number" id="reg-age" min="5" max="100"></div>
+        <div class="form-group"><label>الهاتف</label><input type="text" id="reg-phone" placeholder="09xxxxxxx"></div>
+      </div>
+      <div class="form-group"><label>تاريخ الانضمام</label><input type="date" id="reg-date"></div>
+      <div class="form-group"><label>📖 السورة الحالية</label><select id="reg-surah"><option value="">-- اختر --</option></select></div>
+      <div class="form-group"><label>📌 السورة التي بدأ منها (عند الانضمام)</label><select id="reg-start-surah"><option value="">-- اختر --</option></select></div>
+      <div class="form-group"><label>ملاحظات ابتدائية</label><input type="text" id="reg-notes" placeholder="مستوى الحفظ، شروط خاصة..."></div>
+      <button class="btn btn-primary" onclick="registerStudent()">💾 تسجيل وإضافة</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">✏️ تعديل بيانات الطالب</span>
+      <button class="btn-close" onclick="closeModal('edit-modal')">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input type="hidden" id="edit-id">
+      <div class="form-group"><label>الاسم الكامل *</label><input type="text" id="edit-name"></div>
+      <div class="g2">
+        <div class="form-group"><label>العمر</label><input type="number" id="edit-age" min="5" max="100"></div>
+        <div class="form-group"><label>الهاتف</label><input type="text" id="edit-phone"></div>
+      </div>
+      <div class="form-group"><label>تاريخ الانضمام</label><input type="date" id="edit-date"></div>
+      <div class="form-group"><label>📖 السورة الحالية</label><select id="edit-surah"><option value="">-- اختر --</option></select></div>
+      <div class="form-group"><label>📌 السورة التي بدأ منها (عند الانضمام)</label><select id="edit-start-surah"><option value="">-- اختر --</option></select></div>
+      <div class="form-group"><label>ملاحظات</label><input type="text" id="edit-notes"></div>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn btn-primary" style="flex:2;" onclick="saveEditStudent()">💾 حفظ التعديلات</button>
+        <button class="btn btn-danger" style="flex:1;" onclick="deleteStudent()">🗑️ حذف</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// تحديد الـ BIN الخاص بك تلقائياً بناءً على كودك السابق
+window._BIN = "67daf792e41b4d34e49cd069";
+const url = `https://api.jsonbin.io/v3/b/${window._BIN}`;
+const masterKey = "$2a$10$7Z207t0gM0YF4kXfR3.HguR.Tj41Gv99FfLg3bS8L6l5XbNlQ/WvG"; // مفتاحك القديم المسترجع
+
+let students = [];
+let logs = [];
+
+const SURAHS = [
+  "الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف","الأنفال","التوبة","يونس","هود",
+  "يوسف","الرعد","إبراهيم","الحجر","النحل","الإسراء","الكهف","مريم","طه","الأنبياء","الحج","المؤمنون",
+  "النور","الفرقان","الشعراء","النمل","القصص","العنكبوت","الروم","لقمان","السجدة","الأحزاب","سبأ",
+  "فاطر","يس","الصافات","ص","الزمر","غافر","فصلت","الشورى","الزخرف","الدخان","الجاثية","الأحقاف",
+  "محمد","الفتح","الحجرات","ق","الذاريات","الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة",
+  "الحشر","الممتحنة","الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم","الملك","القلم","الحاقة",
+  "المعارج","نوح","الجن","المزمل","المدثر","القيامة","الإنسان","المرسلات","النبأ","النازعات","عبس",
+  "التكوير","الانفطار","المطففين","الانشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد",
+  "الشمس","الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة","العاديات","القارعة",
+  "التكاثر","العصر","الهمزة","الفيل","قريش","الماعون","الكوثر","الكافرون","النصر","المسد","الإخلاص",
+  "الفلق","الناس"
+];
+
+function fillSurahSel(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.innerHTML = '<option value="">-- اختر السورة --</option>';
+  SURAHS.forEach((s, i) => {
+    el.innerHTML += `<option value="${i+1}">${i+1}. ${s}</option>`;
+  });
+}
+
+function today(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fmtDate(s){
+  if(!s) return '';
+  const p = s.split('-');
+  if(p.length!==3) return s;
+  return `${p[2]}/${p[1]}`;
+}
+
+function switchTab(id){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(id==='tab-stats') renderStats();
+}
+
+function openModal(id){ document.getElementById(id).style.display='flex'; }
+function closeModal(id){ document.getElementById(id).style.display='none'; }
+
+// ======= الميزة السحرية: جلب البيانات بدون كاش نهائياً =======
+async function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  try {
+    // نضع علامة تاريخ عشوائي في الرابط لنجبر جيسون بن والشبكة على إعطاء الشيخ أحدث نسخة فوراً بدون كاش
+    const noCacheUrl = `${url}?nocache=${new Date().getTime()}`;
+    const res = await fetch(noCacheUrl, {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': masterKey,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
+    const data = await res.json();
+    if(data.record) {
+      students = data.record.students || [];
+      logs = data.record.logs || [];
+    }
+    renderStudents();
+    fillStudentSelect();
+    renderStats();
+  } catch(e) {
+    alert('حدث خطأ أثناء تحميل البيانات، يرجى إعادة المحاولة.');
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+async function uploadData() {
+  document.getElementById('loading').style.display = 'flex';
+  try {
+    await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': masterKey
+      },
+      body: JSON.stringify({ students, logs })
+    });
+  } catch(e) {
+    alert('فشل في حفظ ومزامنة البيانات مع السيرفر السحابي!');
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function fillStudentSelect(){
+  const el = document.getElementById('daily-student');
+  const curr = el.value;
+  el.innerHTML = '<option value="">-- اختر الطالب --</option>';
+  students.sort((a,b)=>a.name.localeCompare(b.name,'ar')).forEach(s => {
+    el.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+  });
+  el.value = curr;
+}
+
+function renderStudents(){
+  const q = document.getElementById('search-input').value.trim();
+  const container = document.getElementById('students-container');
+  container.innerHTML = '';
+  
+  let f = students;
+  if(q) f = students.filter(x => x.name.includes(q));
+  
+  if(f.length===0){
+    container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">لا يوجد طلاب مسجلين مطابقتين للبحث</div>';
+    return;
+  }
+  
+  f.sort((a,b)=>a.name.localeCompare(b.name,'ar')).forEach(s => {
+    const sLogs = logs.filter(l => l.studentId === s.id);
+    const totalP = sLogs.reduce((acc,curr)=>acc+(parseInt(curr.pages)||0), 0);
+    const lastL = sLogs.length ? sLogs[sLogs.length-1] : null;
+    
+    let lastTxt = 'لم يسمّع بعد';
+    if(lastL) {
+      const sName = SURAHS[(parseInt(lastL.surahNum)||1)-1] || '';
+      lastTxt = `${sName} (${fmtDate(lastL.date)})`;
+    }
+    
+    const startSurahName = SURAHS[(parseInt(s.startSurahNum)||1)-1] || 'غير محدد';
+    const currentSurahName = SURAHS[(parseInt(s.currentSurahNum)||1)-1] || 'غير محدد';
+
+    container.innerHTML += `
+      <div class="student-card">
+        <div class="s-info">
+          <h3>${s.name}</h3>
+          <p>📅 انضمام: ${fmtDate(s.joinDate)} | 🎂 العمر: ${s.age||'--'}</p>
+          <p>📌 بدأ من: <strong>${startSurahName}</strong></p>
+          <p>📖 السورة الحالية: <span style="color:var(--gold-light);font-weight:700">${currentSurahName}</span></p>
+          <p>📜 آخر تسميع: ${lastTxt}</p>
+          <p>📊 إجمالي الإنجاز: <span class="log-pages">${totalP} صفحة</span></p>
+        </div>
+        <div class="s-actions">
+          <button class="btn btn-secondary" onclick="openEditStudent(${s.id})">✏️ تعديل</button>
+          <button class="btn btn-primary" onclick="quickLog(${s.id})">⚡ ورد سريع</button>
+        </div>
+      </div>
+    `;
+  });
+}
+
+async function registerStudent(){
+  const name = document.getElementById('reg-name').value.trim();
+  if(!name) return alert('الرجاء كتابة اسم الطالب');
+  
+  const s = {
+    id: Date.now(),
+    name,
+    age: document.getElementById('reg-age').value,
+    phone: document.getElementById('reg-phone').value,
+    joinDate: document.getElementById('reg-date').value || today(),
+    currentSurahNum: parseInt(document.getElementById('reg-surah').value) || 1,
+    startSurahNum: parseInt(document.getElementById('reg-start-surah').value) || 1,
+    notes: document.getElementById('reg-notes').value
+  };
+  
+  students.push(s);
+  closeModal('reg-modal');
+  document.getElementById('reg-name').value='';
+  document.getElementById('reg-age').value='';
+  document.getElementById('reg-phone').value='';
+  document.getElementById('reg-notes').value='';
+  
+  renderStudents();
+  fillStudentSelect();
+  await uploadData();
+  alert('تم تسجيل الطالب ومزامنة البيانات سحابياً بنجاح!');
+}
+
+function openEditStudent(id){
+  const s = students.find(x => x.id === id);
+  if(!s) return;
+  document.getElementById('edit-id').value = s.id;
+  document.getElementById('edit-name').value = s.name;
+  document.getElementById('edit-age').value = s.age || '';
+  document.getElementById('edit-phone').value = s.phone || '';
+  document.getElementById('edit-date').value = s.joinDate || today();
+  document.getElementById('edit-surah').value = s.currentSurahNum || 1;
+  document.getElementById('edit-start-surah').value = s.startSurahNum || 1;
+  document.getElementById('edit-notes').value = s.notes || '';
+  openModal('edit-modal');
+}
+
+async function saveEditStudent(){
+  const id = parseInt(document.getElementById('edit-id').value);
+  const s = students.find(x => x.id === id);
+  if(!s) return;
+  
+  s.name = document.getElementById('edit-name').value.trim();
+  s.age = document.getElementById('edit-age').value;
+  s.phone = document.getElementById('edit-phone').value;
+  s.joinDate = document.getElementById('edit-date').value;
+  s.currentSurahNum = parseInt(document.getElementById('edit-surah').value) || 1;
+  s.startSurahNum = parseInt(document.getElementById('edit-start-surah').value) || 1;
+  s.notes = document.getElementById('edit-notes').value;
+  
+  closeModal('edit-modal');
+  renderStudents();
+  fillStudentSelect();
+  await uploadData();
+  alert('تم تحديث البيانات بنجاح في السحاب!');
+}
+
+async function deleteStudent(){
+  if(!confirm('هل أنت متأكد تماماً من حذف هذا الطالب نهائياً من المنظومة وسجلاته؟')) return;
+  const id = parseInt(document.getElementById('edit-id').value);
+  students = students.filter(x => x.id !== id);
+  logs = logs.filter(l => l.studentId !== id);
+  closeModal('edit-modal');
+  renderStudents();
+  fillStudentSelect();
+  await uploadData();
+}
+
+function quickLog(id){
+  switchTab('tab-daily');
+  document.getElementById('daily-student').value = id;
+  renderLogHistory();
+}
+
+async function addDailyLog(){
+  const sid = parseInt(document.getElementById('daily-student').value);
+  if(!sid) return alert('الرجاء اختيار الطالب أولاً');
+  
+  const p = parseInt(document.getElementById('daily-pages').value) || 0;
+  const sNum = parseInt(document.getElementById('daily-surah-select').value) || 1;
+  
+  const l = {
+    id: Date.now(),
+    studentId: sid,
+    date: document.getElementById('daily-date').value || today(),
+    pages: p,
+    surahNum: sNum,
+    surahName: SURAHS[sNum-1],
+    ayahFrom: document.getElementById('daily-ayah-from').value,
+    ayahTo: document.getElementById('daily-ayah-to').value,
+    note: document.getElementById('daily-note').value
+  };
+  
+  logs.push(l);
+  
+  // تحديث السورة الحالية للطالب تلقائياً إلى آخر سورة سمعها
+  const s = students.find(x => x.id === sid);
+  if(s) s.currentSurahNum = sNum;
+  
+  document.getElementById('daily-pages').value = '1';
+  document.getElementById('daily-ayah-from').value = '';
+  document.getElementById('daily-ayah-to').value = '';
+  document.getElementById('daily-note').value = '';
+  
+  renderLogHistory();
+  renderStudents();
+  await uploadData();
+  alert('تم حفظ الورد اليومي ومزامنته فورياً!');
+}
+
+function renderLogHistory(){
+  const sid = parseInt(document.getElementById('daily-student').value);
+  const container = document.getElementById('history-container');
+  if(!sid) {
+    container.innerHTML = '<div class="empty-state">اختر طالباً لعرض سجله</div>';
+    return;
+  }
+  const sLogs = logs.filter(l => l.studentId === sid).sort((a,b)=>b.id - a.id);
+  container.innerHTML = `
+    <div class="history-list">
+      ${sLogs.map(l => `
+        <div class="log-item">
+          <span class="log-date">${fmtDate(l.date)}</span>
+          <span class="log-detail">
+            <strong>${l.surahName||''}</strong> 
+            ${l.ayahFrom&&l.ayahTo?`(آية ${l.ayahFrom}–${l.ayahTo})`:''}
+            ${l.note?`<br><small style="color:#7a9a88">📝 ${l.note}</small>`:''}
+          </span>
+          <span class="log-pages">${l.pages||0} ص</span>
+        </div>
+      `).join('') || '<div class="empty-state">لا سجلات سابقة لهذا الطالب</div>'}
+    </div>
+  `;
+}
+
+function renderReviewLogs(){
+  const dt = document.getElementById('review-date').value;
+  const container = document.getElementById('review-logs-container');
+  container.innerHTML = '';
+  if(!dt) return;
+  
+  const f = logs.filter(l => l.date === dt);
+  if(f.length===0){
+    container.innerHTML = '<div class="empty-state">لم يقم أي طالب بالتسميع في هذا التاريخ</div>';
+    return;
+  }
+  
+  f.forEach(l => {
+    const s = students.find(x => x.id === l.studentId);
+    container.innerHTML += `
+      <div class="log-item">
+        <span style="font-weight:700;color:var(--gold-light);min-width:120px;">${s?s.name:'طالب محذوف'}</span>
+        <span class="log-detail">
+          <strong>${l.surahName||''}</strong>
+          ${l.ayahFrom&&l.ayahTo?`من آية ${l.ayahFrom} إلى ${l.ayahTo}`:''}
+          ${l.note?`<br><small style="color:#7a9a88">📝 ${l.note}</small>`:''}
+        </span>
+        <span class="log-pages">${l.pages||0} ص</span>
+      </div>
+    `;
+  });
+}
+
+function renderStats(){
+  document.getElementById('stat-total-students').textContent = students.length;
+  document.getElementById('stat-total-pages').textContent = logs.reduce((acc,curr)=>acc+(parseInt(curr.pages)||0), 0);
+  document.getElementById('stat-total-logs').textContent = logs.length;
+  
+  const t = today();
+  document.getElementById('stat-active-today').textContent = logs.filter(l => l.date === t).length;
+  renderReviewLogs();
+}
+
+// ==================== INIT ====================\n
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+document.getElementById('daily-date').value = today();
+document.getElementById('review-date').value = today();
+document.getElementById('reg-date').value = today();
+
+fillSurahSel('reg-surah');
+fillSurahSel('reg-start-surah');
+fillSurahSel('daily-surah-select');
+fillSurahSel('edit-surah');
+fillSurahSel('edit-start-surah');
+
+document.getElementById('daily-student').addEventListener('change', function(){
+  renderLogHistory();
+});
+
+// تشغيل جلب البيانات فور فتح الصفحة
+loadData();
+</script>
+</body>
+</html>
 
