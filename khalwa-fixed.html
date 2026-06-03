@@ -74,7 +74,7 @@ tr:hover td{background:rgba(200,168,75,.05);}
 .modal-title{font-family:'Amiri',serif;font-size:1.15rem;color:var(--gold-light);}
 .btn-close{background:none;border:none;color:#a0c0a8;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;}
 .btn-close:hover{color:var(--cream);}
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(150px);background:linear-gradient(135deg,var(--green-mid),var(--green-deep));border:1px solid var(--gold-dark);color:var(--cream);padding:10px 22px;border-radius:30px;font-size:.88rem;z-index:99999;transition:transform .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.4);pointer-events:none;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:linear-gradient(135deg,var(--green-mid),var(--green-deep));border:1px solid var(--gold-dark);color:var(--cream);padding:10px 22px;border-radius:30px;font-size:.88rem;z-index:999;transition:transform .3s;box-shadow:0 4px 20px rgba(0,0,0,.4);}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .section-box{background:rgba(255,255,255,.03);border:1px solid rgba(200,168,75,.12);border-radius:12px;padding:14px;margin-bottom:12px;}
 .section-box-title{font-size:.8rem;color:var(--gold);font-weight:700;margin-bottom:10px;}
@@ -103,7 +103,6 @@ tr:hover td{background:rgba(200,168,75,.05);}
   <button class="tab" onclick="showTab('students',this)">👥 الطلاب</button>
   <button class="tab" onclick="showTab('daily',this)">📅 التسجيل اليومي</button>
   <button class="tab" onclick="showTab('review',this)">🔄 المراجعة</button>
-  <button class="tab" onclick="showTab('attendance',this)">📋 الحضور والغياب</button>
   <button class="tab" onclick="showTab('reports',this)">📊 التقارير</button>
 </nav>
 <main>
@@ -177,13 +176,7 @@ tr:hover td{background:rgba(200,168,75,.05);}
       <div class="form-group">
         <label>اختر الطالب</label>
         <input type="text" id="daily-student-search" placeholder="🔍 ابحث بالاسم أو الكود..." oninput="filterStudentSel('daily-student-search','daily-student')" style="margin-bottom:5px;">
-        <input type="text" id="daily-student-search"
-          placeholder="🔍 اكتب الاسم أو الكود للتصفية..."
-          oninput="filterStudentList(this.value)"
-          style="margin-bottom:5px;">
-        <select id="daily-student" onchange="onDailyStudentChange(this.value)">
-          <option value="">-- اختر طالباً --</option>
-        </select>
+        <select id="daily-student"><option value="">-- اختر طالباً --</option></select>
       </div>
       <div class="form-group">
         <label>التاريخ</label>
@@ -191,18 +184,27 @@ tr:hover td{background:rgba(200,168,75,.05);}
       </div>
     </div>
 
+    <!-- حالة الطالب -->
     <div class="form-group" style="margin-bottom:16px;">
       <label>📋 حالة الطالب *</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;">
-        <button type="button" id="att-read" onclick="setAttendance('read')" style="padding:10px 6px;border-radius:10px;border:2px solid rgba(45,134,83,.3);background:rgba(45,134,83,.1);color:#80d4a0;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;">✅ حضر وقرأ</button>
-        <button type="button" id="att-present" onclick="setAttendance('present')" style="padding:10px 6px;border-radius:10px;border:2px solid rgba(200,168,75,.3);background:rgba(200,168,75,.08);color:var(--gold);font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;">🟡 حضر لم يقرأ</button>
-        <button type="button" id="att-absent" onclick="setAttendance('absent')" style="padding:10px 6px;border-radius:10px;border:2px solid rgba(180,50,50,.3);background:rgba(180,50,50,.08);color:#f08080;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .2s;">❌ غائب</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
+        <button type="button" id="att-read" onclick="setAttendance('read')"
+          style="padding:10px 6px;border-radius:10px;border:2px solid rgba(45,134,83,.3);background:rgba(45,134,83,.1);color:#80d4a0;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;">✅ حضر وقرأ</button>
+        <button type="button" id="att-heard" onclick="setAttendance('heard')"
+          style="padding:10px 6px;border-radius:10px;border:2px solid rgba(100,149,237,.3);background:rgba(100,149,237,.08);color:#99bbff;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;">📖 قرأ ولم يحفظ</button>
+        <button type="button" id="att-present" onclick="setAttendance('present')"
+          style="padding:10px 6px;border-radius:10px;border:2px solid rgba(200,168,75,.3);background:rgba(200,168,75,.08);color:var(--gold);font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;">🟡 حضر لم يقرأ</button>
+        <button type="button" id="att-absent" onclick="setAttendance('absent')"
+          style="padding:10px 6px;border-radius:10px;border:2px solid rgba(180,50,50,.3);background:rgba(180,50,50,.08);color:#f08080;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .2s;">❌ غائب</button>
       </div>
     </div>
-    <div id="att-note-box" style="display:none;margin-bottom:14px;">
-      <div class="form-group"><label>ملاحظة (اختياري)</label><input type="text" id="att-note" placeholder="سبب الغياب..."></div>
+    <div id="att-note-section" style="display:none;margin-bottom:14px;">
+      <div class="form-group">
+        <label>ملاحظة (اختياري)</label>
+        <input type="text" id="att-note" placeholder="سبب الغياب أو ملاحظة...">
+      </div>
     </div>
-    <div id="read-section" style="display:none;">
+
     <!-- السورة — المحرّك -->
     <div class="form-group" style="margin-bottom:14px;">
       <label>📖 السورة المقروءة *</label>
@@ -281,8 +283,7 @@ tr:hover td{background:rgba(200,168,75,.05);}
       </div>
 
     </div><!-- end daily-opts -->
-    </div><!-- end read-section -->
-    <button class="btn btn-primary" onclick="addDailyLog()" style="width:100%;margin-top:8px;">💾 حفظ السجل اليومي</button>
+    <button class="btn btn-primary" onclick="addDailyLog()">💾 حفظ السجل اليومي</button>
   </div>
 
   <div class="card">
@@ -324,31 +325,6 @@ tr:hover td{background:rgba(200,168,75,.05);}
   </div>
 </div>
 
-<!-- ATTENDANCE -->
-<div id="tab-attendance" class="section">
-  <div class="card">
-    <div class="card-title">📋 حضور وغياب اليوم</div>
-    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="renderAttendanceToday()">🔄 تحديث</button>
-      <button class="btn btn-secondary" onclick="exportAttendanceExcel()">📊 تصدير Excel</button>
-      <button class="btn btn-secondary" onclick="printAttendanceToday()">🖨️ طباعة</button>
-    </div>
-    <div id="attendance-today-content"><div class="empty-state"><div class="icon">📋</div><div>اضغط تحديث لعرض الحضور</div></div></div>
-  </div>
-  <div class="card">
-    <div class="card-title">📅 سجل الغياب اليومي</div>
-    <div class="form-group" style="margin-bottom:12px;">
-      <label>اختر التاريخ</label>
-      <input type="date" id="absence-date" onchange="renderAbsenceByDate()">
-    </div>
-    <div id="absence-by-date-content"><div class="empty-state"><div class="icon">📅</div><div>اختر تاريخاً لعرض غياب ذلك اليوم</div></div></div>
-    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-      <button class="btn btn-secondary" onclick="exportAbsenceExcel()">📊 تصدير Excel</button>
-      <button class="btn btn-secondary" onclick="printAbsenceByDate()">🖨️ طباعة</button>
-    </div>
-  </div>
-</div>
-
 <!-- REPORTS -->
 <div id="tab-reports" class="section">
   <div class="stats-grid" id="stats-grid"></div>
@@ -369,17 +345,6 @@ tr:hover td{background:rgba(200,168,75,.05);}
       <select id="report-student" onchange="renderStudentReport()"><option value="">-- اختر طالباً --</option></select>
     </div>
     <div id="student-report-content"><div class="empty-state"><div class="icon">👤</div><div>اختر طالباً لعرض تقريره</div></div></div>
-  </div>
-  <div class="card">
-    <div class="card-title">🖨️ التقرير الشهري لأولياء الأمور</div>
-    <div class="g2" style="margin-bottom:14px;">
-      <div class="form-group">
-        <label>اختر الطالب</label>
-        <select id="monthly-student"><option value="">-- اختر طالباً --</option></select>
-      </div>
-      <div class="form-group"><label>الشهر</label><input type="month" id="monthly-month"></div>
-    </div>
-    <button class="btn btn-primary" onclick="printMonthlyReport()" style="width:100%;">🖨️ طباعة التقرير الشهري</button>
   </div>
 </div>
 
@@ -438,10 +403,13 @@ tr:hover td{background:rgba(200,168,75,.05);}
   <div style="color:#a0c0a8;font-size:.9rem;">جاري الاتصال بالسحابة...</div>
   <div style="width:48px;height:48px;border:4px solid rgba(200,168,75,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;"></div>
   <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-<script>
-window._BIN = '6a1751ba21f9ee59d292bba9';
-window._KEY = '$2a$10$mBFBskAHcxhAgRIHWM9CJu3I69uYm8lRICAsgvPbc2rcjkExSZ.8G';
-  
+</div>
+
+  <script>
+  window._BIN = "6a1751ba21f9ee59d292bba9";
+  window._KEY = "$2a$10$mBFBskAHcxhAgRIHWM9CJu3I69uYm8lRICAsgvPbc2rcjkExSZ.8G";
+</script>
+
 // ==================== بيانات القرآن الكريم ====================
 // كل سورة: [الاسم، عدد الآيات، الجزء الذي تبدأ فيه، الحزب الذي تبدأ فيه]
 const SURAHS_DATA = [
@@ -1490,77 +1458,12 @@ let nextId   = 1;
 
 // حفظ في Firebase
 function save(){
-  // حفظ محلي فوري
-  localStorage.setItem('kq_students', JSON.stringify(students));
-  localStorage.setItem('kq_logs',     JSON.stringify(logs));
-  localStorage.setItem('kq_reviews',  JSON.stringify(reviews));
-  localStorage.setItem('kq_nextId',   String(nextId));
-  // علامة أن في تغييرات لم ترفع للسحابة
-  window._dirty = true;
-  updateCloudBtn();
-}
-
-// مزامنة لحظية — يُنفَّذ عند أي تغيير من أي جهاز
-function initFirebase(){
-  window._BIN = '6a1751ba21f9ee59d292bba9';
-  window._KEY = '$2a$10$mBFBskAHcxhAgRIHWM9CJu3I69uYm8lRICAsgvPbc2rcjkExSZ.8G';
-  window._dirty = false;
-
-  // قراءة واحدة فقط من JSONBin عند الفتح
-  fetch('https://api.jsonbin.io/v3/b/' + window._BIN + '/latest', {
-    headers: { 'X-Access-Key': window._KEY }
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    var d = data.record || {};
-    // نأخذ أحدث البيانات: نقارن عدد الطلاب في السحابة مع المحلي
-    var cloudStudents = d.students || [];
-    var localStudents = JSON.parse(localStorage.getItem('kq_students') || '[]');
-    var cloudLogs     = d.logs     || [];
-    var localLogs     = JSON.parse(localStorage.getItem('kq_logs')     || '[]');
-
-    // نستخدم الأكثر بيانات (الأحدث)
-    if(cloudStudents.length >= localStudents.length){
-      students = cloudStudents;
-      logs     = cloudLogs;
-      reviews  = d.reviews || [];
-      nextId   = d.nextId  || 1;
-    } else {
-      students = localStudents;
-      logs     = localLogs;
-      reviews  = JSON.parse(localStorage.getItem('kq_reviews') || '[]');
-      nextId   = parseInt(localStorage.getItem('kq_nextId') || '1');
-      // ارفع البيانات المحلية للسحابة لأنها أحدث
-      window._dirty = true;
-    }
-
-    // تحديث localStorage بأحدث البيانات
-    localStorage.setItem('kq_students', JSON.stringify(students));
-    localStorage.setItem('kq_logs',     JSON.stringify(logs));
-    localStorage.setItem('kq_reviews',  JSON.stringify(reviews));
-    localStorage.setItem('kq_nextId',   String(nextId));
-
-    autoMarkUnrecorded();
-    renderHome();
-    renderStudentsTable();
-    fillAllStudentSels();
-    updateCloudBtn();
-    showToast('☁️ تم الاتصال بالسحابة');
-  })
-  .catch(function(){
-    // لو ما في نت - استخدم البيانات المحلية
-    students = JSON.parse(localStorage.getItem('kq_students') || '[]');
-    logs     = JSON.parse(localStorage.getItem('kq_logs')     || '[]');
-    reviews  = JSON.parse(localStorage.getItem('kq_reviews')  || '[]');
-    nextId   = parseInt(localStorage.getItem('kq_nextId')     || '1');
-    window._dirty = true;
-    autoMarkUnrecorded();
-    renderHome();
-    renderStudentsTable();
-    fillAllStudentSels();
-    updateCloudBtn();
-    showToast('⚠️ وضع محلي — اضغط ☁️ للمزامنة');
-  });
+  localStorage.setItem('kq_students',JSON.stringify(students));
+  localStorage.setItem('kq_logs',JSON.stringify(logs));
+  localStorage.setItem('kq_reviews',JSON.stringify(reviews));
+  localStorage.setItem('kq_nextId',String(nextId));
+  window._dirty=true;
+  if(typeof updateCloudBtn==='function') updateCloudBtn();
 }
 
 // ==================== Helpers ====================
@@ -1578,8 +1481,7 @@ function showTab(name,btn){
   if(name==='home') renderHome();
   if(name==='daily'){ fillStudentSel('daily-student'); renderLogHistory(); }
   if(name==='review'){ fillStudentSel('review-student'); renderReviewsTable(); }
-  if(name==='attendance'){ renderAttendanceToday(); document.getElementById('absence-date').value=today(); renderAbsenceByDate(); }
-  if(name==='reports'){ fillAllStudentSels(); renderReports(); }
+  if(name==='reports'){ fillStudentSel('report-student'); renderReports(); }
 }
 
 function fillStudentSel(selId){
@@ -1733,6 +1635,7 @@ function printMonthlyReport(sid){
 
   const sLogs=logs.filter(l=>l.studentId===sid&&l.date.startsWith(monthInput));
   const readLogs=sLogs.filter(l=>l.attendance==='read'||!l.attendance);
+  const heardLogs=sLogs.filter(l=>l.attendance==='heard');
   const presentLogs=sLogs.filter(l=>l.attendance==='present');
   const absentLogs=sLogs.filter(l=>l.attendance==='absent');
   const unrecLogs=sLogs.filter(l=>l.attendance==='unrecorded');
@@ -1772,6 +1675,7 @@ function printMonthlyReport(sid){
 
   <div class="stats">
     <div class="stat"><div class="stat-n">${readLogs.length}</div><div class="stat-l">✅ حضر وقرأ</div></div>
+    <div class="stat"><div class="stat-n">${heardLogs?heardLogs.length:0}</div><div class="stat-l">📖 قرأ ولم يحفظ</div></div>
     <div class="stat"><div class="stat-n">${presentLogs.length}</div><div class="stat-l">🟡 حضر لم يقرأ</div></div>
     <div class="stat"><div class="stat-n">${absentLogs.length}</div><div class="stat-l">❌ غائب</div></div>
     <div class="stat"><div class="stat-n">${totalPages}</div><div class="stat-l">📄 إجمالي الصفحات</div></div>
@@ -1792,6 +1696,7 @@ function printMonthlyReport(sid){
     } else {
       let cls='u',att='—';
       if(l.attendance==='read'||!l.attendance){cls='r';att='✅ قرأ';}
+      else if(l.attendance==='heard'){cls='h';att='📖 قرأ ولم يحفظ';}
       else if(l.attendance==='present'){cls='p';att='🟡 حضر';}
       else if(l.attendance==='absent'){cls='a';att='❌ غائب';}
       else if(l.attendance==='unrecorded'){cls='u';att='⬜ —';}
@@ -1979,7 +1884,7 @@ function addDailyLog(){
   const date=document.getElementById('daily-date').value||today();
 
   // حضر ولم يقرأ أو غائب
-  if(currentAttendance!=='read'){
+  if(currentAttendance!=='read' && currentAttendance!=='heard'){
     const attNoteEl=document.getElementById('att-note');
     const attNote=attNoteEl?attNoteEl.value.trim():'';
     const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.attendance==='unrecorded');
@@ -1990,7 +1895,22 @@ function addDailyLog(){
     save();
     if(attNoteEl) attNoteEl.value='';
     const st=students.find(x=>x.id===sid);
-    showToast(`✅ ${st.name} — ${currentAttendance==='present'?'حاضر لم يقرأ':'غائب'}`);
+    showToast(`✅ ${st.name} — ${currentAttendance==='present'?'حاضر لم يقرأ':currentAttendance==='heard'?'قرأ ولم يحفظ':'غائب'}`);
+    resetDailyForm(); renderLogHistory(); return;
+  }
+
+  // قرأ ولم يحفظ
+  if(currentAttendance==='heard'){
+    const attNoteEl=document.getElementById('att-note');
+    const note=attNoteEl?attNoteEl.value.trim():'';
+    const surahN2=parseInt(document.getElementById('daily-surah-select').value)||0;
+    const surahObj2=getSurah(surahN2);
+    logs.push({ id:Date.now(), studentId:sid, date, attendance:'heard',
+      pages:0, surahN:surahN2, surahName:surahObj2?surahObj2.name:'',
+      ayahFrom:0, ayahTo:0, juz:0, hizb:0, athman:'', note:note });
+    save();
+    if(attNoteEl) attNoteEl.value='';
+    showToast(`✅ ${st.name} — قرأ ولم يحفظ`);
     resetDailyForm(); renderLogHistory(); return;
   }
 
@@ -2057,7 +1977,7 @@ function resetDailyForm(){
   const cb=document.getElementById('auto-calc-box');
   if(cb) cb.style.display='none';
   currentAttendance='';
-  ['read','present','absent'].forEach(t=>{
+  ['read','heard','present','absent'].forEach(t=>{
     const b=document.getElementById('att-'+t);
     if(b){b.style.opacity='1';b.style.transform='scale(1)';}
   });
@@ -2159,8 +2079,8 @@ function onReviewStudentChange(){
   `;
   fillSurahSel('rev-from-sel'); fillSurahSel('rev-to-sel');
   // update text fields on surah select
-  var _rfs=document.getElementById('rev-from-sel'); if(_rfs) _rfs.addEventListener('change',function(){ const s=getSurah(this.value); if(s) document.getElementById('review-from').value=s.name+' آية 1'; });
-  var _rts=document.getElementById('rev-to-sel'); if(_rts) _rts.addEventListener('change',function(){ const s=getSurah(this.value); if(s) document.getElementById('review-to').value=s.name+' آية '+s.ayat; });
+  document.getElementById('rev-from-sel').addEventListener('change',function(){ const s=getSurah(this.value); if(s) document.getElementById('review-from').value=s.name+' آية 1'; });
+  document.getElementById('rev-to-sel').addEventListener('change',function(){ const s=getSurah(this.value); if(s) document.getElementById('review-to').value=s.name+' آية '+s.ayat; });
 }
 
 function saveReview(sid){
@@ -2359,7 +2279,7 @@ document.getElementById('reg-date').value=today();
 fillSurahSel('reg-surah');
 fillSurahSel('daily-surah-select');
 fillSurahSel('edit-surah');
-var _ds=document.getElementById('daily-student'); if(_ds) _ds.addEventListener('change', function(){
+document.getElementById('daily-student').addEventListener('change', function(){
   renderLogHistory();
   const sid=parseInt(this.value);
   if(!sid) return;
@@ -2375,315 +2295,67 @@ var _ds=document.getElementById('daily-student'); if(_ds) _ds.addEventListener('
 // لا نرسم مباشرة — ننتظر Firebase يجهّز البيانات
 initFirebase();
 
-// ==================== زر السحابة الذكي ====================
+// ==================== زر السحابة ====================
 function updateCloudBtn(){
-  var btn = document.getElementById('cloud-save-btn');
-  if(!btn) return;
+  var btn=document.getElementById('cloud-save-btn'); if(!btn) return;
   if(window._dirty){
-    btn.style.background = 'linear-gradient(135deg,#8a6f2e,#5c4a1e)';
-    btn.style.borderColor = 'var(--gold)';
-    btn.innerHTML = '☁️💾';
-    btn.title = 'يوجد تغييرات غير محفوظة — اضغط للمزامنة';
+    btn.style.background='linear-gradient(135deg,#8a6f2e,#5c4a1e)';
+    btn.style.borderColor='var(--gold)'; btn.innerHTML='☁️💾';
+    btn.title='يوجد تغييرات غير محفوظة';
   } else {
-    btn.style.background = 'linear-gradient(135deg,#1a5c38,#0d3320)';
-    btn.style.borderColor = 'rgba(200,168,75,.4)';
-    btn.innerHTML = '☁️';
-    btn.title = 'البيانات محفوظة في السحابة ✅';
+    btn.style.background='linear-gradient(135deg,#1a5c38,#0d3320)';
+    btn.style.borderColor='rgba(200,168,75,.4)'; btn.innerHTML='☁️';
+    btn.title='البيانات محفوظة ✅';
   }
 }
-
 function syncToCloud(){
-  var btn = document.getElementById('cloud-save-btn');
-  if(btn){ btn.innerHTML = '⏳'; btn.style.opacity = '0.7'; }
-  fetch('https://api.jsonbin.io/v3/b/' + window._BIN, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Access-Key': window._KEY
-    },
-    body: JSON.stringify({
-      students: students,
-      logs: logs,
-      reviews: reviews,
-      nextId: nextId
-    })
-  })
-  .then(function(r){
+  var btn=document.getElementById('cloud-save-btn');
+  if(btn){btn.innerHTML='⏳';btn.style.opacity='0.7';}
+  fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+    body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId})
+  }).then(function(r){
     if(r.ok){
-      window._dirty = false;
-      updateCloudBtn();
-      // تحديث localStorage بعد الحفظ الناجح
-      localStorage.setItem('kq_students', JSON.stringify(students));
-      localStorage.setItem('kq_logs',     JSON.stringify(logs));
-      localStorage.setItem('kq_reviews',  JSON.stringify(reviews));
-      localStorage.setItem('kq_nextId',   String(nextId));
-      showToast('✅ تم الحفظ في السحابة');
-    } else {
-      showToast('❌ فشل الحفظ — حاول مجدداً');
-      if(btn){ btn.innerHTML = '☁️💾'; btn.style.opacity = '1'; }
-    }
-  })
-  .catch(function(){
-    showToast('❌ تحقق من الاتصال بالإنترنت');
-    if(btn){ btn.innerHTML = '☁️💾'; btn.style.opacity = '1'; }
-  });
+      window._dirty=false;
+      localStorage.setItem('kq_students',JSON.stringify(students));
+      localStorage.setItem('kq_logs',JSON.stringify(logs));
+      localStorage.setItem('kq_reviews',JSON.stringify(reviews));
+      localStorage.setItem('kq_nextId',String(nextId));
+      updateCloudBtn(); showToast('✅ تم الحفظ في السحابة');
+    } else { showToast('❌ فشل الحفظ'); if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';} }
+  }).catch(function(){ showToast('❌ تحقق من الاتصال'); if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';} });
 }
-
-// ==================== قائمة الطلاب ====================
 function fillAllStudentSels(){
-  filterStudentList('');
-  fillStudentSel('review-student');
-  fillStudentSel('report-student');
-  var ms = document.getElementById('monthly-student');
-  if(ms) fillStudentSel('monthly-student');
-}
-
-function filterStudentList(q){
-  var sel = document.getElementById('daily-student');
-  if(!sel) return;
-  var val = sel.value;
-  sel.innerHTML = '<option value="">-- اختر طالباً --</option>';
-  students.slice().sort(function(a,b){ return a.id - b.id; })
-    .filter(function(s){
-      if(!q) return true;
-      q = q.toLowerCase();
-      return s.name.toLowerCase().includes(q) ||
-             String(s.id).includes(q) ||
-             String(s.id).padStart(3,'0').includes(q);
-    })
-    .forEach(function(s){
-      var op = document.createElement('option');
-      op.value = s.id;
-      op.textContent = '[' + String(s.id).padStart(3,'0') + '] ' + s.name + (s.surahName ? ' — ' + s.surahName : '');
-      if(String(s.id) === String(val)) op.selected = true;
+  var sel=document.getElementById('daily-student');
+  if(sel){
+    var val=sel.value; sel.innerHTML='<option value="">-- اختر طالباً --</option>';
+    students.slice().sort(function(a,b){return a.id-b.id;}).forEach(function(s){
+      var op=document.createElement('option');
+      op.value=s.id;
+      op.textContent='['+String(s.id).padStart(3,'0')+'] '+s.name+(s.surahName?' — '+s.surahName:'');
+      if(String(s.id)===String(val)) op.selected=true;
       sel.appendChild(op);
     });
-}
-
-function onDailyStudentChange(val){
-  if(parseInt(val)) renderLogHistory();
-}
-
-// ==================== حالة الحضور ====================
-var currentAttendance = '';
-function setAttendance(type){
-  currentAttendance = type;
-  ['read','present','absent'].forEach(function(t){
-    var btn = document.getElementById('att-' + t);
-    if(!btn) return;
-    if(t === type){
-      btn.style.opacity = '1';
-      btn.style.transform = 'scale(1.05)';
-      if(t==='read')    { btn.style.background='rgba(45,134,83,.4)';  btn.style.borderColor='#2d8653'; }
-      if(t==='present') { btn.style.background='rgba(200,168,75,.3)'; btn.style.borderColor='#c8a84b'; }
-      if(t==='absent')  { btn.style.background='rgba(180,50,50,.3)';  btn.style.borderColor='#f08080'; }
-    } else {
-      btn.style.opacity = '0.5';
-      btn.style.transform = 'scale(1)';
-      btn.style.background = '';
-      btn.style.borderColor = '';
-    }
+  }
+  ['review-student','report-student','monthly-student'].forEach(function(id){
+    var el=document.getElementById(id); if(el) fillStudentSel(id);
   });
-  var rs = document.getElementById('read-section');
-  var nb = document.getElementById('att-note-box');
-  if(rs) rs.style.display = (type === 'read') ? 'block' : 'none';
-  if(nb) nb.style.display = (type === 'present' || type === 'absent') ? 'block' : 'none';
 }
 
-// ==================== تسجيل الغائبين تلقائياً ====================
+
 function autoMarkUnrecorded(){
-  var date = today();
-  var recorded = {};
-  logs.filter(function(l){ return l.date === date; })
-      .forEach(function(l){ recorded[l.studentId] = true; });
-  var notRec = students.filter(function(s){ return !recorded[s.id]; });
+  var date=today(); var recorded={};
+  logs.filter(function(l){return l.date===date;}).forEach(function(l){recorded[l.studentId]=true;});
+  var notRec=students.filter(function(s){return !recorded[s.id];});
   if(!notRec.length) return;
   notRec.forEach(function(s){
-    logs.push({
-      id: Date.now() + Math.random(),
-      studentId: s.id,
-      date: date,
-      attendance: 'absent',
-      pages: 0,
-      surahName: '',
-      note: 'غياب تلقائي',
-      autoMarked: true
-    });
+    logs.push({id:Date.now()+Math.random(),studentId:s.id,date:date,
+      attendance:'absent',pages:0,surahName:'',note:'غياب تلقائي',autoMarked:true});
   });
   save();
 }
 
-// ==================== الحضور والغياب ====================
-function renderAttendanceToday(){ renderAttendanceForDate(today(), 'attendance-today-content'); }
-function renderAbsenceByDate(){
-  var date = document.getElementById('absence-date').value;
-  if(!date) return;
-  renderAttendanceForDate(date, 'absence-by-date-content');
-}
-function renderAttendanceForDate(date, cid){
-  var cont = document.getElementById(cid); if(!cont) return;
-  var dayLogs = logs.filter(function(l){ return l.date === date; });
-  var logMap = {};
-  dayLogs.forEach(function(l){ logMap[l.studentId] = l; });
-  var rows = students.sort(function(a,b){ return a.id - b.id; }).map(function(s){
-    var l = logMap[s.id];
-    var att = '⬜ لم يُسجَّل'; var cls = 'color:#888;'; var pages = '—'; var note = '—';
-    if(l){
-      if(l.attendance==='read')    { att='✅ حضر وقرأ';       cls='color:#2d8653;'; }
-      else if(l.attendance==='present') { att='🟡 حضر لم يقرأ'; cls='color:#c8a84b;'; }
-      else if(l.attendance==='absent')  { att='❌ غائب';          cls='color:#f08080;'; }
-      pages = l.pages || '—'; note = l.note || '—';
-    }
-    return '<tr><td><b>' + String(s.id).padStart(3,'0') + '</b></td><td>' + s.name + '</td>'
-      + '<td style="' + cls + 'font-weight:700;">' + att + '</td>'
-      + '<td>' + (s.surahName||'—') + '</td><td>' + pages + '</td><td>' + note + '</td></tr>';
-  }).join('');
-  var rC = dayLogs.filter(function(l){ return l.attendance==='read'; }).length;
-  var pC = dayLogs.filter(function(l){ return l.attendance==='present'; }).length;
-  var aC = dayLogs.filter(function(l){ return l.attendance==='absent'; }).length;
-  var nC = students.length - Object.keys(logMap).length;
-  cont.innerHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">'
-    + '<div style="background:rgba(45,134,83,.15);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:1.4rem;font-weight:700;color:#80d4a0;">' + rC + '</div><div style="font-size:.75rem;color:#a0c0a8;">✅ قرأ</div></div>'
-    + '<div style="background:rgba(200,168,75,.12);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:1.4rem;font-weight:700;color:#c8a84b;">' + pC + '</div><div style="font-size:.75rem;color:#a0c0a8;">🟡 حضر</div></div>'
-    + '<div style="background:rgba(180,50,50,.15);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:1.4rem;font-weight:700;color:#f08080;">' + aC + '</div><div style="font-size:.75rem;color:#a0c0a8;">❌ غائب</div></div>'
-    + '<div style="background:rgba(255,255,255,.05);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:1.4rem;font-weight:700;color:#888;">' + nC + '</div><div style="font-size:.75rem;color:#a0c0a8;">⬜ لم يُسجَّل</div></div>'
-    + '</div><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.84rem;">'
-    + '<thead><tr style="background:rgba(200,168,75,.15);">'
-    + '<th style="padding:8px;text-align:right;color:#c8a84b;">الرقم</th>'
-    + '<th style="padding:8px;text-align:right;color:#c8a84b;">الاسم</th>'
-    + '<th style="padding:8px;text-align:right;color:#c8a84b;">الحالة</th>'
-    + '<th style="padding:8px;text-align:right;color:#c8a84b;">السورة</th>'
-    + '<th style="padding:8px;text-align:right;color:#c8a84b;">الصفحات</th>'
-    + '<th style="padding:8px;text-align:right;color:#c8a84b;">ملاحظات</th>'
-    + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
-}
-function exportAttendanceExcel(){ exportToCSV(today(), 'حضور-' + today()); }
-function exportAbsenceExcel(){
-  var d = document.getElementById('absence-date').value || today();
-  exportToCSV(d, 'غياب-' + d);
-}
-function exportToCSV(date, fname){
-  var dayLogs = logs.filter(function(l){ return l.date === date; });
-  var logMap = {};
-  dayLogs.forEach(function(l){ logMap[l.studentId] = l; });
-  var rows = [['الرقم','الاسم','الحالة','السورة','الصفحات','ملاحظات']];
-  students.sort(function(a,b){ return a.id - b.id; }).forEach(function(s){
-    var l = logMap[s.id]; var att = 'لم يُسجَّل';
-    if(l){
-      if(l.attendance==='read') att='حضر وقرأ';
-      else if(l.attendance==='present') att='حضر لم يقرأ';
-      else if(l.attendance==='absent') att='غائب';
-    }
-    rows.push([String(s.id).padStart(3,'0'), s.name, att, s.surahName||'', l?l.pages||0:0, l?l.note||'':'']);
-  });
-  var csv = rows.map(function(r){
-    return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(',');
-  }).join('\n');
-  var blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = fname + '.csv';
-  a.click();
-  showToast('✅ تم تصدير الملف');
-}
-function printAttendanceToday(){ printForDate(today(), 'حضور اليوم - ' + fmtDate(today())); }
-function printAbsenceByDate(){
-  var d = document.getElementById('absence-date').value || today();
-  printForDate(d, 'سجل الحضور - ' + fmtDate(d));
-}
-function printForDate(date, title){
-  var dayLogs = logs.filter(function(l){ return l.date === date; });
-  var logMap = {};
-  dayLogs.forEach(function(l){ logMap[l.studentId] = l; });
-  var rows = students.sort(function(a,b){ return a.id - b.id; }).map(function(s){
-    var l = logMap[s.id]; var att = '⬜ لم يُسجَّل'; var col = '#888';
-    if(l){
-      if(l.attendance==='read'){att='✅ حضر وقرأ';col='#1a5c38';}
-      else if(l.attendance==='present'){att='🟡 حضر لم يقرأ';col='#8a6f2e';}
-      else if(l.attendance==='absent'){att='❌ غائب';col='#8b0000';}
-    }
-    return '<tr><td>' + String(s.id).padStart(3,'0') + '</td><td>' + s.name + '</td>'
-      + '<td style="color:' + col + ';font-weight:700;">' + att + '</td>'
-      + '<td>' + (s.surahName||'—') + '</td>'
-      + '<td>' + (l?l.pages||'—':'—') + '</td>'
-      + '<td>' + (l?l.note||'—':'—') + '</td></tr>';
-  }).join('');
-  var rC = dayLogs.filter(function(l){ return l.attendance==='read'; }).length;
-  var pC = dayLogs.filter(function(l){ return l.attendance==='present'; }).length;
-  var aC = dayLogs.filter(function(l){ return l.attendance==='absent'; }).length;
-  var html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">'
-    + '<style>body{font-family:Arial;margin:20px;direction:rtl;}'
-    + '.hdr{text-align:center;border-bottom:3px solid #1a5c38;padding-bottom:12px;margin-bottom:16px;}'
-    + '.hdr h1{color:#1a5c38;font-size:1.2rem;margin:0;}.hdr h2{color:#c8a84b;font-size:1rem;margin:4px 0;}'
-    + '.stats{display:flex;gap:10px;margin-bottom:14px;justify-content:center;flex-wrap:wrap;}'
-    + '.stat{border:1px solid #ddd;border-radius:8px;padding:8px 14px;text-align:center;}'
-    + '.stat .n{font-size:1.4rem;font-weight:700;}.stat .l{font-size:.78rem;color:#666;}'
-    + 'table{width:100%;border-collapse:collapse;font-size:.88rem;}'
-    + 'th{background:#1a5c38;color:#fff;padding:7px;text-align:right;}'
-    + 'td{padding:7px;border-bottom:1px solid #eee;}tr:nth-child(even){background:#f9f9f9;}'
-    + '@media print{body{margin:8px;}}</style></head><body>'
-    + '<div class="hdr"><h1>📖 زاوية الشيخ عبد السلام النفاتي</h1><h2>' + title + '</h2></div>'
-    + '<div class="stats">'
-    + '<div class="stat"><div class="n" style="color:#1a5c38;">' + rC + '</div><div class="l">✅ حضر وقرأ</div></div>'
-    + '<div class="stat"><div class="n" style="color:#8a6f2e;">' + pC + '</div><div class="l">🟡 حضر لم يقرأ</div></div>'
-    + '<div class="stat"><div class="n" style="color:#8b0000;">' + aC + '</div><div class="l">❌ غائب</div></div>'
-    + '</div>'
-    + '<table><thead><tr><th>الرقم</th><th>الاسم</th><th>الحالة</th><th>السورة</th><th>الصفحات</th><th>ملاحظات</th></tr></thead>'
-    + '<tbody>' + rows + '</tbody></table></body></html>';
-  var w = window.open('', '_blank');
-  w.document.write(html); w.document.close(); w.print();
-}
-
-function printMonthlyReport(){
-  var sid = parseInt(document.getElementById('monthly-student').value);
-  var month = document.getElementById('monthly-month').value;
-  if(!sid || !month){ showToast('اختر الطالب والشهر'); return; }
-  var s = students.find(function(x){ return x.id === sid; }); if(!s) return;
-  var parts = month.split('-');
-  var mN = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-  var mn = mN[parseInt(parts[1])-1] + ' ' + parts[0];
-  var sL = logs.filter(function(l){ return l.studentId===sid && l.date && l.date.startsWith(month); });
-  var rL = sL.filter(function(l){ return l.attendance==='read'; });
-  var pL = sL.filter(function(l){ return l.attendance==='present'; });
-  var aL = sL.filter(function(l){ return l.attendance==='absent'; });
-  var tP = rL.reduce(function(a,b){ return a + (b.pages||0); }, 0);
-  var rows = sL.sort(function(a,b){ return a.date.localeCompare(b.date); }).map(function(l){
-    var att='✅ حضر وقرأ'; var col='#1a5c38';
-    if(l.attendance==='present'){att='🟡 حضر لم يقرأ';col='#8a6f2e';}
-    if(l.attendance==='absent'){att='❌ غائب';col='#8b0000';}
-    return '<tr><td>' + fmtDate(l.date) + '</td><td style="color:' + col + ';font-weight:700;">' + att + '</td>'
-      + '<td>' + (l.surahName||'—') + '</td><td>' + (l.pages||0) + '</td><td>' + (l.note||'—') + '</td></tr>';
-  }).join('');
-  var html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">'
-    + '<style>body{font-family:Arial;margin:20px;direction:rtl;}'
-    + '.hdr{text-align:center;border-bottom:3px solid #1a5c38;padding-bottom:14px;margin-bottom:18px;}'
-    + '.hdr h1{color:#1a5c38;font-size:1.3rem;margin:0;}.hdr h2{color:#c8a84b;font-size:1rem;margin:4px 0;}'
-    + '.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}'
-    + '.box{border:1px solid #ddd;border-radius:8px;padding:10px;text-align:center;}'
-    + '.box .n{font-size:1.7rem;font-weight:700;}.box .l{font-size:.82rem;color:#666;}'
-    + 'table{width:100%;border-collapse:collapse;font-size:.88rem;}'
-    + 'th{background:#1a5c38;color:#fff;padding:8px;text-align:right;}'
-    + 'td{padding:7px;border-bottom:1px solid #eee;}tr:nth-child(even){background:#f9f9f9;}'
-    + '@media print{body{margin:8px;}}</style></head><body>'
-    + '<div class="hdr"><h1>📖 زاوية الشيخ عبد السلام النفاتي</h1>'
-    + '<h2>التقرير الشهري — ' + mn + '</h2>'
-    + '<div style="font-size:.9rem;margin-top:6px;"><b>الطالب:</b> ' + s.name
-    + ' | <b>الرقم:</b> ' + String(s.id).padStart(3,'0')
-    + ' | <b>السورة:</b> ' + (s.surahName||'—') + '</div></div>'
-    + '<div class="grid">'
-    + '<div class="box"><div class="n" style="color:#1a5c38;">' + rL.length + '</div><div class="l">✅ حضر وقرأ</div></div>'
-    + '<div class="box"><div class="n" style="color:#8a6f2e;">' + pL.length + '</div><div class="l">🟡 حضر لم يقرأ</div></div>'
-    + '<div class="box"><div class="n" style="color:#8b0000;">' + aL.length + '</div><div class="l">❌ غائب</div></div>'
-    + '<div class="box"><div class="n" style="color:#1a5c38;">' + tP + '</div><div class="l">📄 إجمالي الصفحات</div></div>'
-    + '</div>'
-    + '<table><thead><tr><th>التاريخ</th><th>الحالة</th><th>السورة</th><th>الصفحات</th><th>ملاحظات</th></tr></thead>'
-    + '<tbody>' + (rows||'<tr><td colspan="5" style="text-align:center;color:#999;">لا توجد سجلات</td></tr>') + '</tbody></table>'
-    + '<div style="margin-top:16px;text-align:center;font-size:.78rem;color:#999;border-top:1px solid #ddd;padding-top:8px;">'
-    + 'تاريخ الإصدار: ' + fmtDate(today()) + ' — زاوية الشيخ عبد السلام النفاتي</div></body></html>';
-  var w = window.open('', '_blank');
-  w.document.write(html); w.document.close(); w.print();
-}
-
 </script>
 </body>
-</html>
+  </html>
