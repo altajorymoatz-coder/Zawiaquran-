@@ -2338,6 +2338,9 @@ function fillAllStudentSels(){
     var el=document.getElementById(id); if(el) fillStudentSel(id);
   });
 }
+window._BIN = "679bc62fe41b4d34e481bf1f";
+window._KEY = "$2a$10$UoWp0vI/4Y6bCbeDk3iBduG0FidwU0mDqZ8SjQ3I0MvF8Ue1A2B3C";
+
 function autoMarkUnrecorded(){
   var date=today(); var recorded={};
   logs.filter(function(l){return l.date===date;}).forEach(function(l){recorded[l.studentId]=true;});
