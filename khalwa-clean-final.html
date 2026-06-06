@@ -1451,11 +1451,31 @@ let nextId   = 1;
 
 // حفظ في JSONBin
 function save(){
+  // 1. حفظ محلي فوري
   localStorage.setItem('kq_students',JSON.stringify(students));
   localStorage.setItem('kq_logs',JSON.stringify(logs));
   localStorage.setItem('kq_reviews',JSON.stringify(reviews));
   localStorage.setItem('kq_nextId',String(nextId));
-  window._dirty=true;
+  // 2. رفع JSONBin فوراً تلقائياً
+  if(window._BIN && window._KEY){
+    fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+      body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId})
+    })
+    .then(function(r){
+      if(r.ok){
+        window._dirty=false;
+        if(typeof updateCloudBtn==='function') updateCloudBtn();
+      }
+    })
+    .catch(function(){
+      // لو فشل الرفع نضع علامة للمزامنة اليدوية
+      window._dirty=true;
+      if(typeof updateCloudBtn==='function') updateCloudBtn();
+    });
+  }
+  window._dirty=false;
   if(typeof updateCloudBtn==='function') updateCloudBtn();
 }
 
@@ -2603,4 +2623,4 @@ function calcEditYearFromAge(age){
 
 </script>
 </body>
-</html>
+  </html>
