@@ -131,8 +131,16 @@ tr:hover td{background:rgba(200,168,75,.05);}
         <input type="text" id="reg-name" placeholder="أدخل اسم الطالب">
       </div>
       <div class="form-group">
-        <label>العمر</label>
-        <input type="number" id="reg-age" placeholder="العمر" min="5" max="100">
+        <label>العمر / سنة الميلاد</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input type="number" id="reg-birth-year" placeholder="سنة الميلاد (مثال: 2007)"
+            min="1950" max="2025" oninput="calcAgeFromYear(this.value)"
+            style="text-align:center;">
+          <input type="number" id="reg-age" placeholder="العمر بالسنوات"
+            min="1" max="100" oninput="calcYearFromAge(this.value)"
+            style="text-align:center;">
+        </div>
+        <div style="font-size:.78rem;color:#a0c0a8;margin-top:4px;">أدخل أحدهما والآخر يُحسب تلقائياً</div>
       </div>
       <div class="form-group">
         <label>رقم الهاتف</label>
@@ -145,6 +153,10 @@ tr:hover td{background:rgba(200,168,75,.05);}
       <div class="form-group">
         <label>📖 السورة الحالية (واصل فيها)</label>
         <select id="reg-surah"><option value="">-- اختر السورة --</option></select>
+      </div>
+      <div class="form-group">
+        <label>📌 السورة التي بدأ منها (عند الانضمام)</label>
+        <select id="reg-start-surah"><option value="">-- اختر السورة --</option></select>
       </div>
       <div class="form-group">
         <label>ملاحظات</label>
@@ -362,7 +374,13 @@ tr:hover td{background:rgba(200,168,75,.05);}
       <input type="hidden" id="edit-id">
       <div class="form-group"><label>الاسم الكامل *</label><input type="text" id="edit-name"></div>
       <div class="g2">
-        <div class="form-group"><label>العمر</label><input type="number" id="edit-age" min="5" max="100"></div>
+        <div class="form-group"><label>العمر / سنة الميلاد</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input type="number" id="edit-birth-year" placeholder="سنة الميلاد"
+            min="1950" max="2025" oninput="calcEditAgeFromYear(this.value)">
+          <input type="number" id="edit-age" placeholder="العمر بالسنوات"
+            min="1" max="100" oninput="calcEditYearFromAge(this.value)">
+        </div></div>
         <div class="form-group"><label>الهاتف</label><input type="text" id="edit-phone"></div>
       </div>
       <div class="form-group"><label>تاريخ الانضمام</label><input type="date" id="edit-date"></div>
@@ -1558,13 +1576,17 @@ function addStudent(){
   const s={
     id:nextId++, name,
     age:document.getElementById('reg-age').value||'',
+    birthYear:document.getElementById('reg-birth-year').value||'',
     phone:document.getElementById('reg-phone').value||'',
     joinDate:document.getElementById('reg-date').value||today(),
     surahN:sn, surahName:surahObj?surahObj.name:'',
+    startSurahN:parseInt(document.getElementById('reg-start-surah').value)||0,
+    startSurahName:(getSurah(parseInt(document.getElementById('reg-start-surah').value)||0)||{}).name||'',
     notes:document.getElementById('reg-notes').value||''
   };
   students.push(s); save();
-  ['reg-name','reg-age','reg-phone','reg-notes'].forEach(i=>document.getElementById(i).value='');
+  ['reg-name','reg-age','reg-birth-year','reg-phone','reg-notes'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('reg-start-surah').value='';
   document.getElementById('reg-date').value='';
   document.getElementById('reg-surah').value='';
   renderStudentsTable(); renderHome();
@@ -1597,7 +1619,7 @@ function renderStudentsTable(){
       <td><span class="badge bg">${String(s.id).padStart(3,'0')}</span></td>
       <td><strong>${s.name}</strong></td>
       <td>${s.surahName?`<span class="badge bg2">${s.surahName}</span>`:'—'}</td>
-      <td>${s.age||'—'}</td>
+      <td>${s.age?s.age+' سنة':'—'}${s.birthYear?' ('+s.birthYear+')':''}</td>
       <td dir="ltr">${s.phone||'—'}</td>
       <td>${fmtDate(s.joinDate)}</td>
       <td><span class="badge bg2">${tp} صفحة</span></td>
@@ -1617,6 +1639,7 @@ function editStudent(id){
   document.getElementById('edit-id').value=id;
   document.getElementById('edit-name').value=s.name;
   document.getElementById('edit-age').value=s.age||'';
+  var ebEl=document.getElementById('edit-birth-year'); if(ebEl) ebEl.value=s.birthYear||'';
   document.getElementById('edit-phone').value=s.phone||'';
   document.getElementById('edit-date').value=s.joinDate||'';
   document.getElementById('edit-notes').value=s.notes||'';
@@ -1634,6 +1657,7 @@ function saveEditStudent(){
   const surahObj=getSurah(sn);
   s.name=name;
   s.age=document.getElementById('edit-age').value||'';
+  var ebEl2=document.getElementById('edit-birth-year'); if(ebEl2) s.birthYear=ebEl2.value||'';
   s.phone=document.getElementById('edit-phone').value||'';
   s.joinDate=document.getElementById('edit-date').value||s.joinDate;
   s.surahN=sn; s.surahName=surahObj?surahObj.name:'';
@@ -1686,7 +1710,7 @@ function printMonthlyReport(sid){
     <h2>زاوية الشيخ عبد السلام النفاتي لتحفيظ القرآن الكريم</h2>
     <h3>التقرير الشهري — ${monthName}</h3>
     <div style="font-size:.9rem;margin-top:6px;">
-      <strong>${s.name}</strong> — الرقم: ${String(s.id).padStart(3,'0')} — السورة الحالية: ${s.surahName||'—'}
+      <strong>${s.name}</strong> — الرقم: ${String(s.id).padStart(3,'0')} — السورة الحالية: ${s.surahName||'—'} — بدأ من: ${s.startSurahName||'—'}
     </div>
   </div>
 
@@ -2277,6 +2301,7 @@ document.getElementById('review-date').value=today();
 document.getElementById('reg-date').value=today();
 
 fillSurahSel('reg-surah');
+fillSurahSel('reg-start-surah');
 fillSurahSel('daily-surah-select');
 fillSurahSel('edit-surah');
 var _ds=document.getElementById('daily-student'); if(_ds) _ds.addEventListener('change', function(){
@@ -2539,6 +2564,41 @@ function setAttendance(type){
     if(nb) nb.style.display='block';
     if(opts){opts.style.opacity='0.3';opts.style.pointerEvents='none';}
   }
+}
+
+
+// ==================== حساب العمر/سنة الميلاد تلقائياً ====================
+function calcAgeFromYear(year){
+  var y=parseInt(year);
+  if(!y||y<1950||y>2025) return;
+  var age=new Date().getFullYear()-y;
+  if(age>=0&&age<=100){
+    var el=document.getElementById('reg-age');
+    if(el) el.value=age;
+  }
+}
+function calcYearFromAge(age){
+  var a=parseInt(age);
+  if(!a||a<1||a>100) return;
+  var year=new Date().getFullYear()-a;
+  var el=document.getElementById('reg-birth-year');
+  if(el) el.value=year;
+}
+function calcEditAgeFromYear(year){
+  var y=parseInt(year);
+  if(!y||y<1950||y>2025) return;
+  var age=new Date().getFullYear()-y;
+  if(age>=0&&age<=100){
+    var el=document.getElementById('edit-age');
+    if(el) el.value=age;
+  }
+}
+function calcEditYearFromAge(age){
+  var a=parseInt(age);
+  if(!a||a<1||a>100) return;
+  var year=new Date().getFullYear()-a;
+  var el=document.getElementById('edit-birth-year');
+  if(el) el.value=year;
 }
 
 </script>
