@@ -152,6 +152,7 @@ tr:hover td{background:rgba(200,168,75,.05);}
       </div>
       <div class="form-group">
         <label>📖 السورة الحالية (واصل فيها)</label>
+        <input type="text" id="reg-surah-search" placeholder="🔍 ابحث عن سورة..." oninput="filterSurahSel('reg-surah-search','reg-surah')" style="margin-bottom:5px;">
         <select id="reg-surah"><option value="">-- اختر السورة --</option></select>
       </div>
       <div class="form-group">
@@ -211,6 +212,14 @@ tr:hover td{background:rgba(200,168,75,.05);}
       </div>
     </div>
 
+    <!-- سبب عدم الحفظ - يظهر فقط عند قرأ ولم يحفظ -->
+    <div id="heard-reason-section" style="display:none;margin-bottom:14px;">
+      <div class="form-group">
+        <label>📝 سبب عدم الحفظ (اختياري)</label>
+        <input type="text" id="heard-reason" placeholder="مثال: لم يراجع، صعوبة في الحفظ...">
+      </div>
+    </div>
+
     <!-- ملاحظة للغياب/حضر لم يقرأ -->
     <div id="att-note-section" style="display:none;margin-bottom:14px;">
       <div class="form-group">
@@ -223,6 +232,7 @@ tr:hover td{background:rgba(200,168,75,.05);}
     <div id="surah-section">
     <div class="form-group" style="margin-bottom:14px;">
       <label>📖 السورة المقروءة *</label>
+      <input type="text" id="daily-surah-search" placeholder="🔍 ابحث عن سورة..." oninput="filterSurahSel('daily-surah-search','daily-surah-select')" style="margin-bottom:5px;">
       <select id="daily-surah-select" onchange="onDailySurahChange()">
         <option value="">-- اختر السورة أولاً لتفعيل الخيارات --</option>
       </select>
@@ -409,7 +419,7 @@ tr:hover td{background:rgba(200,168,75,.05);}
         <div class="form-group"><label>الهاتف</label><input type="text" id="edit-phone"></div>
       </div>
       <div class="form-group"><label>تاريخ الانضمام</label><input type="date" id="edit-date"></div>
-      <div class="form-group"><label>📖 السورة الحالية</label><select id="edit-surah"><option value="">-- اختر --</option></select></div>
+      <div class="form-group"><label>📖 السورة الحالية</label><input type="text" id="edit-surah-search" placeholder="🔍 ابحث عن سورة..." oninput="filterSurahSel('edit-surah-search','edit-surah')" style="margin-bottom:5px;"><select id="edit-surah"><option value="">-- اختر --</option></select></div>
       <div class="form-group"><label>ملاحظات</label><input type="text" id="edit-notes"></div>
       <button class="btn btn-primary" onclick="saveEditStudent()">💾 حفظ التعديلات</button>
     </div>
@@ -563,7 +573,7 @@ const ATHMAN = [
   [2,6,9,'وَإِذِ اسْتَسْقَى مُوسَى لِقَوْمِهِ فَقُلْنَا اضْرِبْ'],
   [2,7,10,'وَإِذْ قَالَ مُوسَى لِقَوْمِهِ'],
   [2,8,11,'وَإِذَا لَقُوا الَّذِينَ آمَنُوا قَالُوا آمَنَّا وَإِذَا خَلَا'],
-  [2,9,13,'وَإِيَّأْتُوكُمْ أُسَرَى تُفَدُهُمْ'],
+  [2,9,13,'وَإِن تَأْتُوكَ كَمَا تَأْتُوكَ'],
   [2,10,14,'وَلَقَدْ جَاءَكُم مُّوسَى بِالْبَيِّنَاتِ'],
   [2,11,16,'وَاتَّبَعُوا مَا تَتْلُو الشَّيَاطِينُ عَلَى مُلْكِ سُلَيْمَانَ وَمَا كَفَرَ'],
   [2,12,17,'مَا نَنسَخْ مِنْ آيَةٍ أَوْ نُنسِهَا نَأْتِ بِخَيْرٍ مِّنْهَا أَوْ مِثْلِهَا'],
@@ -595,7 +605,7 @@ const ATHMAN = [
   [2,38,49,'وَإِن كُنتُمْ عَلَى سَفَرٍ وَلَمْ تَجِدُوا كَاتِبًا فَرِهَانٌ مَّقْبُوضَةٌ'],
   // [3] آل عمران — 21 ثمناً
   [3,1,50,'إِنَّ اللَّهَ لَا يَخْفَى عَلَيْهِ شَيْءٌ'],
-  [3,2,51,'قُلْ أَوَنَبِئُكُم بِخَيْرٍ مِّن ذَٰلِكُمْ'],
+  [3,2,51,'قُلْ أَؤُتُنِئُكُم بِخَيْرٍ مِّن ذَٰلِكُمْ'],
   [3,3,53,'قُلِ اللَّهُمَّ مَالِكَ الْمُلْكِ تُؤْتِي الْمُلْكَ'],
   [3,4,54,'إِنَّ اللَّهَ اصْطَفَى آدَمَ وَنُوحًا وَآلَ إِبْرَاهِيمَ'],
   [3,5,55,'وَإِذْ قَالَتِ الْمَلَائِكَةُ يَا مَرْيَمُ إِنَّ اللَّهَ اصْطَفَاكِ'],
@@ -1640,6 +1650,7 @@ function addStudent(){
   document.getElementById('reg-start-surah').value='';
   document.getElementById('reg-date').value='';
   document.getElementById('reg-surah').value='';
+  var rss=document.getElementById('reg-surah-search'); if(rss) rss.value='';
   renderStudentsTable(); renderHome();
   showToast(`✅ تم تسجيل ${name} (رقم ${String(s.id).padStart(3,'0')})`);
 }
@@ -1975,11 +1986,34 @@ function addDailyLog(){
 
   // حضر ولم يقرأ أو غائب
   if(currentAttendance==='heard'){
-    const attN=document.getElementById('att-note'); const note=attN?attN.value.trim():'';
+    // سبب عدم الحفظ
+    const hrEl=document.getElementById('heard-reason');
+    const hrNote=hrEl?hrEl.value.trim():'';
+    // السورة اختيارية
     const hn=parseInt(document.getElementById('daily-surah-select').value)||0;
     const ho=getSurah(hn);
-    logs.push({id:Date.now(),studentId:sid,date,attendance:'heard',pages:0,surahN:hn,surahName:ho?ho.name:'',ayahFrom:0,ayahTo:0,juz:0,hizb:0,athman:'',note:note});
-    save(); if(attN) attN.value=''; showToast(`✅ ${st.name} — قرأ ولم يحفظ`); resetDailyForm(); renderLogHistory(); return;
+    // الأثمان والآيات اختيارية
+    const hAthFrom=parseInt(document.getElementById('daily-athman-from')?.value)||0;
+    const hAthTo=parseInt(document.getElementById('daily-athman-to')?.value)||0;
+    const hAyahFrom=parseInt(document.getElementById('daily-ayah-from')?.value)||0;
+    const hAyahTo=parseInt(document.getElementById('daily-ayah-to')?.value)||0;
+    const hJuz=parseInt(document.getElementById('daily-juz-sel')?.value)||0;
+    const hHizb=parseInt(document.getElementById('daily-hizb-sel')?.value)||0;
+    // حذف سجل الغياب التلقائي إن وجد
+    const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.autoMarked);
+    if(unrecIdx>-1) logs.splice(unrecIdx,1);
+    logs.push({
+      id:Date.now(), studentId:sid, date, attendance:'heard',
+      pages:0, surahN:hn, surahName:ho?ho.name:'',
+      ayahFrom:hAyahFrom, ayahTo:hAyahTo,
+      juz:hJuz, hizb:hHizb,
+      athmanFrom:hAthFrom, athmanTo:hAthTo,
+      note:hrNote
+    });
+    save();
+    if(hrEl) hrEl.value='';
+    showToast('✅ '+st.name+' — قرأ ولم يحفظ');
+    resetDailyForm(); renderLogHistory(); return;
   }
   if(currentAttendance!=='read'){
     const attNoteEl=document.getElementById('att-note');
@@ -2050,6 +2084,7 @@ function resetDailyForm(){
     const el=document.getElementById(i); if(el) el.value='';
   });
   document.getElementById('daily-surah-select').value='';
+  var dss=document.getElementById('daily-surah-search'); if(dss) dss.value='';
   const ss=document.getElementById('surah-section');
   if(ss) ss.style.display='none';
   const an=document.getElementById('att-note-section');
@@ -2059,6 +2094,7 @@ function resetDailyForm(){
   const cb=document.getElementById('auto-calc-box');
   if(cb) cb.style.display='none';
   currentAttendance='';
+  var hrReset=document.getElementById('heard-reason'); if(hrReset) hrReset.value='';
   ['read','heard','present','absent'].forEach(t=>{
     const b=document.getElementById('att-'+t);
     if(b){b.style.opacity='1';b.style.transform='scale(1)';}
@@ -2659,6 +2695,28 @@ function calcEditYearFromAge(age){
   if(el) el.value=year;
 }
 
+
+// ==================== بحث في السور ====================
+function filterSurahSel(inputId, selId){
+  var q = document.getElementById(inputId).value.trim();
+  var sel = document.getElementById(selId);
+  if(!sel) return;
+  var val = sel.value;
+  sel.innerHTML = '<option value="">-- اختر السورة --</option>';
+  SURAHS_DATA.filter(function(s){
+    if(!q) return true;
+    return s.name.includes(q) || String(s.n).includes(q);
+  }).forEach(function(s){
+    var o = document.createElement('option');
+    o.value = s.n;
+    o.textContent = s.n + '. ' + s.name;
+    if(String(s.n) === String(val)) o.selected = true;
+    sel.appendChild(o);
+  });
+  // نحافظ على القيمة المختارة إن كانت في النتائج
+  if(val) sel.value = val;
+}
+
 </script>
 </body>
-  </html>
+</html>
