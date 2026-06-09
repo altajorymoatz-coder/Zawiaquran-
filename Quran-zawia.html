@@ -1983,6 +1983,8 @@ function addDailyLog(){
   if(!currentAttendance){ showToast('⚠️ اختر حالة الطالب أولاً'); return; }
 
   const date=document.getElementById('daily-date').value||today();
+  const st=students.find(x=>x.id===sid);
+  if(!st){ showToast('❌ الطالب غير موجود'); return; }
 
   // حضر ولم يقرأ أو غائب
   if(currentAttendance==='heard'){
@@ -2025,8 +2027,7 @@ function addDailyLog(){
       juz:0, hizb:0, athman:'', note:attNote });
     save();
     if(attNoteEl) attNoteEl.value='';
-    const st=students.find(x=>x.id===sid);
-    showToast(`✅ ${st.name} — ${currentAttendance==='present'?'حاضر لم يقرأ':currentAttendance==='heard'?'قرأ ولم يحفظ':'غائب'}`);
+    showToast(`✅ ${st.name} — ${currentAttendance==='present'?'حاضر لم يقرأ':'غائب'}`);
     resetDailyForm(); renderLogHistory(); return;
   }
 
@@ -2064,7 +2065,6 @@ function addDailyLog(){
     athmanFrom:athFromVal, athmanTo:athToVal||athFromVal, athmanCount:athCount, note });
   save();
 
-  const st=students.find(x=>x.id===sid);
   showToast(`✅ تم تسجيل قراءة ${st.name}`);
 
   if(surahObj&&st.surahN!==surahN){
