@@ -1463,8 +1463,7 @@ const ATHMAN_DATA = [
   // [106-114] لا أثمان مستقلة — تندرج في الثمن الأخير
 ];
 
-// دالة لجلب أثمان سورة معينة
-function getAthmanForSurah(surahN) {
+// دالة لجلب أثمان سورة معينةFunction getAthmanForSurah(surahN) {
   return ATHMAN_DATA.filter(a => a.surah === surahN);
 }
 const AJZAA_START = [
@@ -1573,7 +1572,16 @@ function initApp(){
 
 // ==================== Helpers ====================
 function today(){ return new Date().toISOString().split('T')[0]; }
-function fmtDate(d){ if(!d) return '—'; const[y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; }
+
+// دالة منقحة ومحدثة لعرض التاريخ متبوعاً باليوم بدقة عالية للشيخ
+function fmtDate(d){ 
+  if(!d) return '—'; 
+  const[y,m,dd]=d.split('-'); 
+  const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(dd));
+  const dayName = dateObj.toLocaleDateString('ar-SA', {weekday: 'long'});
+  return `${dayName} ${dd}/${m}/${y}`; 
+}
+
 function showToast(msg){ var t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); clearTimeout(window._tt); window._tt=setTimeout(function(){t.classList.remove('show');},2000); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function openModal(id){ document.getElementById(id).classList.add('open'); }
@@ -1667,7 +1675,7 @@ function deleteStudent(id){
   const s=students.find(x=>x.id===id);
   if(!s) return;
   if(!window.confirm(`حذف الطالب "${s.name}" وجميع سجلاته؟`)) return;
-  students=students.filter(x=>x.id!==id);
+  students=students.filter(x!==id);
   logs=logs.filter(l=>l.studentId!==id);
   reviews=reviews.filter(r=>r.studentId!==id);
   save(); renderStudentsTable(); renderHome();
@@ -1801,6 +1809,7 @@ function printMonthlyReport(sid){
     } else {
       let cls='u',att='—';
       if(l.attendance==='read'||!l.attendance){cls='r';att='✅ قرأ';}
+      else if(l.attendance==='heard'){cls='p';att='📖 قرأ ولم يحفظ';}
       else if(l.attendance==='present'){cls='p';att='🟡 حضر';}
       else if(l.attendance==='absent'){cls='a';att='❌ غائب';}
       else if(l.attendance==='unrecorded'){cls='u';att='⬜ —';}
@@ -1854,7 +1863,7 @@ function getAthmanPages(surahN, athmanN){
     const idx=ATHMAN_DATA.findIndex(a=>a.surah===surahN&&a.n===athmanN);
     if(idx!==-1 && ATHMAN_DATA[idx+1]) return Math.max(1, ATHMAN_DATA[idx+1].page - ATHMAN_DATA[idx].page);
   }
-  return 2; 
+  return 1.25; // الثمن الدقيق في رواية قالون لمصحف الداني يساوي 1.25 صفحة رياضياً
 }
 
 function fillAthmanSel(surahN, filterHizb){
@@ -1934,10 +1943,10 @@ function onJuzChange(){
   const hizbsToShow=[hizbStart,hizbEnd].filter(h=>hizbsInSurah.includes(h));
 
   if(hizbsToShow.length>0){
-    hizbsToShow.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=`الحزب ${h}`; hizbSel.appendChild(o); });
+    hizbsToShow.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=`الحزب ${h}`; hizbSel.appendChild(h); });
     hizbSel.disabled=false;
   } else {
-    hizbsInSurah.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=`الحزب ${h}`; hizbSel.appendChild(o); });
+    hizbsInSurah.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=`الحزب ${h}`; hizbSel.appendChild(h); });
     hizbSel.disabled=hizbsInSurah.length===0;
   }
   fillAthmanSel(n, null);
@@ -1958,9 +1967,14 @@ function onAthmanChange(){
 
   const endN=toN&&toN>=fromN?toN:fromN;
   const count=endN-fromN+1;
+  
+  // آلية الحساب الذكي المطورة لدعم الأثمان والأحزاب والكسور (كل ثمن = 1.25 صفحة)
   let totalPages=0;
-  for(let i=fromN;i<=endN;i++) totalPages+=getAthmanPages(n,i);
-  totalPages=Math.round(totalPages);
+  for(let i=fromN; i<=endN; i++) {
+    totalPages += getAthmanPages(n, i);
+  }
+  // تحويل القيمة الكسرية إلى شكل مبسط ومقروء بدقة (مثال: 1.5 صفحة أو 2.5 صفحة)
+  totalPages = parseFloat(totalPages.toFixed(2));
 
   document.getElementById('calc-athman-count').textContent=count;
   document.getElementById('calc-pages-count').textContent=totalPages;
@@ -1977,6 +1991,9 @@ function addDailyLog(){
   const st=students.find(x=>x.id===sid);
   if(!st){ showToast('❌ الطالب غير موجود'); return; }
 
+  // إزالة أي سجل غياب تلقائي أو تكرار مسجل مسبقاً لهذا الطالب في هذا اليوم لعدم حدوث تضارب
+  logs = logs.filter(l => !(l.studentId === sid && l.date === date));
+
   if(currentAttendance==='heard'){
     const hrEl=document.getElementById('heard-reason');
     const hrNote=hrEl?hrEl.value.trim():'';
@@ -1988,9 +2005,6 @@ function addDailyLog(){
     const hAyahTo=parseInt(document.getElementById('daily-ayah-to')?.value)||0;
     const hJuz=parseInt(document.getElementById('daily-juz-sel')?.value)||0;
     const hHizb=parseInt(document.getElementById('daily-hizb-sel')?.value)||0;
-    
-    const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.autoMarked);
-    if(unrecIdx>-1) logs.splice(unrecIdx,1);
     
     logs.push({
       id:Date.now(), studentId:sid, date, attendance:'heard',
@@ -2009,8 +2023,6 @@ function addDailyLog(){
   if(currentAttendance!=='read'){
     const attNoteEl=document.getElementById('att-note');
     const attNote=attNoteEl?attNoteEl.value.trim():'';
-    const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date);
-    if(unrecIdx>-1) logs.splice(unrecIdx,1);
     
     logs.push({ id:Date.now(), studentId:sid, date, attendance:currentAttendance,
       surahN:0, surahName:'', pages:0, ayahFrom:0, ayahTo:0,
@@ -2024,7 +2036,9 @@ function addDailyLog(){
   const surahN=parseInt(document.getElementById('daily-surah-select').value);
   if(!surahN){ showToast('⚠️ اختر السورة أولاً'); return; }
   const surahObj=getSurah(surahN);
-  const pages=parseInt(document.getElementById('daily-pages').value)||0;
+  
+  // قبول الكسور المدخلة تلقائياً أو يدوياً
+  const pages=parseFloat(document.getElementById('daily-pages').value)||0;
   const ayahFrom=parseInt(document.getElementById('daily-ayah-from').value)||0;
   const ayahTo=parseInt(document.getElementById('daily-ayah-to').value)||0;
   const juzVal=parseInt(document.getElementById('daily-juz-sel').value)||0;
@@ -2037,12 +2051,6 @@ function addDailyLog(){
   if(!athFromVal&&!ayahFrom&&!pages&&!juzVal){
     showToast('⚠️ أدخل بيانات القراءة'); return;
   }
-
-  const dup=logs.find(l=>l.studentId===sid&&l.date===date&&l.attendance!=='unrecorded');
-  if(dup&&!window.confirm('يوجد سجل لهذا الطالب في نفس التاريخ، إضافة سجل إضافي؟')) return;
-
-  const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date);
-  if(unrecIdx>-1) logs.splice(unrecIdx,1);
 
   const athText=athFromVal?ATHMAN.find(a=>a[0]===surahN&&a[1]===athFromVal)?.[3]||'':'';
   const athLabel=athFromVal?(athCount>1?`الثمن ${athFromVal}–${athToVal} (${athCount} أثمان)`:`الثمن ${athFromVal} — ${athText.substring(0,30)}`):'';
@@ -2095,7 +2103,7 @@ function renderLogHistory(){
   if(!cont) return;
   if(!sid){ cont.innerHTML='<div class="empty-state"><div class="icon">📅</div><div>اختر طالباً لعرض سجله</div></div>'; return; }
   const sLogs=logs.filter(l=>l.studentId===sid).sort((a,b)=>b.date.localeCompare(a.date));
-  const tp=sLogs.reduce((a,b)=>a+(b.pages||0),0);
+  const tp=parseFloat(sLogs.reduce((a,b)=>a+(b.pages||0),0).toFixed(2));
   const prog=Math.min(Math.round((tp/604)*100),100);
   const st=students.find(x=>x.id===sid);
   cont.innerHTML=`
@@ -2256,7 +2264,7 @@ function renderReviewsTable(){
 function openStudentLog(id){
   const s=students.find(x=>x.id===id); if(!s) return;
   const sLogs=logs.filter(l=>l.studentId===id).sort((a,b)=>b.date.localeCompare(a.date));
-  const tp=sLogs.reduce((a,b)=>a+(b.pages||0),0);
+  const tp=parseFloat(sLogs.reduce((a,b)=>a+(b.pages||0),0).toFixed(2));
   const prog=Math.min(Math.round((tp/604)*100),100);
   document.getElementById('log-modal-title').textContent=`📋 سجل ${s.name}`;
   document.getElementById('log-modal-body').innerHTML=`
@@ -2286,8 +2294,8 @@ function openStudentLog(id){
 }
 
 function renderHome(){
-  const tp=logs.reduce((a,b)=>a+(b.pages||0),0);
-  const activeToday=logs.filter(l=>l.date===today()).length;
+  const tp=parseFloat(logs.reduce((a,b)=>a+(b.pages||0),0).toFixed(2));
+  const activeToday=logs.filter(l=>l.date===today() && l.attendance !== 'absent').length;
   document.getElementById('home-stats').innerHTML=`
     <div class="stat-card"><div class="stat-number">${students.length}</div><div class="stat-label">عدد الطلاب</div></div>
     <div class="stat-card"><div class="stat-number">${tp}</div><div class="stat-label">إجمالي الصفحات</div></div>
@@ -2301,10 +2309,10 @@ function renderHome(){
   cont.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
     ${sorted.map(s=>{
       const sLogs=logs.filter(l=>l.studentId===s.id);
-      const pg=sLogs.reduce((a,b)=>a+(b.pages||0),0);
+      const pg=parseFloat(sLogs.reduce((a,b)=>a+(b.pages||0),0).toFixed(2));
       const prog=Math.min(Math.round((pg/604)*100),100);
       const last=sLogs.sort((a,b)=>b.date.localeCompare(a.date))[0];
-      const readToday=sLogs.some(l=>l.date===today());
+      const readToday=sLogs.some(l=>l.date===today() && l.attendance === 'read');
       return `<div style="background:linear-gradient(145deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(200,168,75,${readToday?'.45':'.18'});border-radius:14px;padding:14px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
           <span class="badge bg">${String(s.id).padStart(3,'0')}</span>
@@ -2326,8 +2334,8 @@ function renderHome(){
 
 // ==================== REPORTS ====================
 function renderReports(){
-  const tp=logs.reduce((a,b)=>a+(b.pages||0),0);
-  const activeToday=logs.filter(l=>l.date===today()).length;
+  const tp=parseFloat(logs.reduce((a,b)=>a+(b.pages||0),0).toFixed(2));
+  const activeToday=logs.filter(l=>l.date===today() && l.attendance !== 'absent').length;
   document.getElementById('stats-grid').innerHTML=`
     <div class="stat-card"><div class="stat-number">${students.length}</div><div class="stat-label">عدد الطلاب</div></div>
     <div class="stat-card"><div class="stat-number">${tp}</div><div class="stat-label">إجمالي الصفحات</div></div>
@@ -2345,7 +2353,7 @@ function renderReports(){
   });
   tbody.innerHTML=sorted.map(s=>{
     const sLogs=logs.filter(l=>l.studentId===s.id);
-    const pages=sLogs.reduce((a,b)=>a+(b.pages||0),0);
+    const pages=parseFloat(sLogs.reduce((a,b)=>a+(b.pages||0),0).toFixed(2));
     const juz=sLogs.reduce((a,b)=>a+(b.juz||0),0);
     const days=sLogs.length;
     const avg=days?(pages/days).toFixed(1):0;
@@ -2370,7 +2378,7 @@ function renderStudentReport(){
   if(!sid){ cont.innerHTML='<div class="empty-state"><div class="icon">👤</div><div>اختر طالباً</div></div>'; return; }
   const s=students.find(x=>x.id===sid);
   const sLogs=logs.filter(l=>l.studentId===sid).sort((a,b)=>b.date.localeCompare(a.date));
-  const tp=sLogs.reduce((a,b)=>a+(b.pages||0),0);
+  const tp=parseFloat(sLogs.reduce((a,b)=>a+(b.pages||0),0).toFixed(2));
   const prog=Math.min(Math.round((tp/604)*100),100);
   cont.innerHTML=`
     <div class="stats-grid" style="margin-bottom:14px;">
