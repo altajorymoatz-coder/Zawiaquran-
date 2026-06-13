@@ -1591,7 +1591,14 @@ function initApp(){
 
 // ==================== Helpers ====================
 function today(){ return new Date().toISOString().split('T')[0]; }
-function fmtDate(d){ if(!d) return '—'; const[y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; }
+function fmtDate(d){
+  if(!d) return '—';
+  var parts=d.split('-');
+  var y=parts[0]; var m=parts[1]; var dd=parts[2];
+  var days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var dayName=days[new Date(parseInt(y),parseInt(m)-1,parseInt(dd)).getDay()];
+  return dayName+' '+dd+'/'+m+'/'+y;
+}
 function showToast(msg){ var t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); clearTimeout(window._tt); window._tt=setTimeout(function(){t.classList.remove('show');},2000); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function openModal(id){ document.getElementById(id).classList.add('open'); }
@@ -2013,6 +2020,10 @@ function addDailyLog(){
   const st=students.find(x=>x.id===sid);
   if(!st){ showToast('❌ الطالب غير موجود'); return; }
 
+  // حذف سجل الغياب التلقائي فوراً عند أي تسجيل
+  const autoIdx=logs.findIndex(function(l){ return l.studentId===sid&&l.date===date&&l.autoMarked; });
+  if(autoIdx>-1) logs.splice(autoIdx,1);
+
   // حضر ولم يقرأ أو غائب
   if(currentAttendance==='heard'){
     // سبب عدم الحفظ
@@ -2029,8 +2040,6 @@ function addDailyLog(){
     const hJuz=parseInt(document.getElementById('daily-juz-sel')?.value)||0;
     const hHizb=parseInt(document.getElementById('daily-hizb-sel')?.value)||0;
     // حذف سجل الغياب التلقائي إن وجد
-    const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.autoMarked);
-    if(unrecIdx>-1) logs.splice(unrecIdx,1);
     logs.push({
       id:Date.now(), studentId:sid, date, attendance:'heard',
       pages:0, surahN:hn, surahName:ho?ho.name:'',
@@ -2047,8 +2056,6 @@ function addDailyLog(){
   if(currentAttendance!=='read'){
     const attNoteEl=document.getElementById('att-note');
     const attNote=attNoteEl?attNoteEl.value.trim():'';
-    const unrecIdx2=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.autoMarked);
-    if(unrecIdx2>-1) logs.splice(unrecIdx2,1);
     logs.push({ id:Date.now(), studentId:sid, date, attendance:currentAttendance,
       surahN:0, surahName:'', pages:0, ayahFrom:0, ayahTo:0,
       juz:0, hizb:0, athman:'', note:attNote });
@@ -2746,4 +2753,4 @@ function filterSurahSel(inputId, selId){
 
 </script>
 </body>
-  </html>
+    </html>
