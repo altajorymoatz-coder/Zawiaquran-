@@ -289,11 +289,11 @@ tr:hover td{background:rgba(200,168,75,.05);}
         <div class="g2" style="margin-bottom:10px;">
           <div class="form-group">
             <label>من آية</label>
-            <input type="number" id="daily-ayah-from" placeholder="رقم الآية" min="1">
+            <input type="number" id="daily-ayah-from" oninput="updateAutoAthman()" placeholder="رقم الآية" min="1">
           </div>
           <div class="form-group">
             <label>إلى آية</label>
-            <input type="number" id="daily-ayah-to" placeholder="رقم الآية" min="1">
+            <input type="number" id="daily-ayah-to" oninput="updateAutoAthman()" placeholder="رقم الآية" min="1">
           </div>
         </div>
 
@@ -2751,6 +2751,100 @@ function filterSurahSel(inputId, selId){
   if(val) sel.value = val;
 }
 
+
+// جدول آيات بداية كل ثمن {surah, n, ayahStart}
+const ATHMAN_AYAH = [
+  // الفاتحة
+  {surah:1, n:1, ayahStart:1},
+  // البقرة
+  {surah:2, n:1, ayahStart:1},   {surah:2, n:2, ayahStart:26},  {surah:2, n:3, ayahStart:44},
+  {surah:2, n:4, ayahStart:60},  {surah:2, n:5, ayahStart:75},  {surah:2, n:6, ayahStart:87},
+  {surah:2, n:7, ayahStart:102}, {surah:2, n:8, ayahStart:114}, {surah:2, n:9, ayahStart:128},
+  {surah:2, n:10, ayahStart:142},{surah:2, n:11, ayahStart:153},{surah:2, n:12, ayahStart:163},
+  {surah:2, n:13, ayahStart:172},{surah:2, n:14, ayahStart:182},{surah:2, n:15, ayahStart:191},
+  {surah:2, n:16, ayahStart:203},{surah:2, n:17, ayahStart:211},{surah:2, n:18, ayahStart:220},
+  {surah:2, n:19, ayahStart:228},{surah:2, n:20, ayahStart:238},{surah:2, n:21, ayahStart:246},
+  {surah:2, n:22, ayahStart:253},{surah:2, n:23, ayahStart:260},{surah:2, n:24, ayahStart:268},
+  {surah:2, n:25, ayahStart:275},{surah:2, n:26, ayahStart:282},{surah:2, n:27, ayahStart:286},
+  {surah:2, n:28, ayahStart:286},{surah:2, n:29, ayahStart:286},{surah:2, n:30, ayahStart:286},
+  {surah:2, n:31, ayahStart:286},{surah:2, n:32, ayahStart:286},{surah:2, n:33, ayahStart:286},
+  {surah:2, n:34, ayahStart:286},{surah:2, n:35, ayahStart:286},{surah:2, n:36, ayahStart:286},
+  {surah:2, n:37, ayahStart:286},{surah:2, n:38, ayahStart:286},
+  // آل عمران
+  {surah:3, n:1, ayahStart:1},   {surah:3, n:2, ayahStart:14},  {surah:3, n:3, ayahStart:29},
+  {surah:3, n:4, ayahStart:44},  {surah:3, n:5, ayahStart:55},  {surah:3, n:6, ayahStart:64},
+  {surah:3, n:7, ayahStart:79},  {surah:3, n:8, ayahStart:92},  {surah:3, n:9, ayahStart:102},
+  {surah:3, n:10, ayahStart:114},{surah:3, n:11, ayahStart:122},{surah:3, n:12, ayahStart:132},
+  {surah:3, n:13, ayahStart:142},{surah:3, n:14, ayahStart:152},{surah:3, n:15, ayahStart:162},
+  {surah:3, n:16, ayahStart:170},{surah:3, n:17, ayahStart:180},{surah:3, n:18, ayahStart:187},
+  {surah:3, n:19, ayahStart:194},{surah:3, n:20, ayahStart:200},{surah:3, n:21, ayahStart:200},
+  // النساء
+  {surah:4, n:1, ayahStart:1},   {surah:4, n:2, ayahStart:12},  {surah:4, n:3, ayahStart:24},
+  {surah:4, n:4, ayahStart:36},  {surah:4, n:5, ayahStart:48},  {surah:4, n:6, ayahStart:58},
+  {surah:4, n:7, ayahStart:69},  {surah:4, n:8, ayahStart:78},  {surah:4, n:9, ayahStart:88},
+  {surah:4, n:10, ayahStart:100},{surah:4, n:11, ayahStart:110},{surah:4, n:12, ayahStart:116},
+  {surah:4, n:13, ayahStart:124},{surah:4, n:14, ayahStart:135},{surah:4, n:15, ayahStart:141},
+  {surah:4, n:16, ayahStart:148},{surah:4, n:17, ayahStart:155},{surah:4, n:18, ayahStart:162},
+  {surah:4, n:19, ayahStart:169},{surah:4, n:20, ayahStart:176},{surah:4, n:21, ayahStart:176},
+  {surah:4, n:22, ayahStart:176},{surah:4, n:23, ayahStart:176},{surah:4, n:24, ayahStart:176},
+];
+
+// ==================== حساب الأثمان من الآيات ====================
+function calcAthmanFromAyah(surahN, ayahFrom, ayahTo){
+  if(!surahN || !ayahFrom || !ayahTo) return {count:0, from:0, to:0, label:''};
+
+  // نجيب أثمان هذه السورة مرتبة
+  var surahAthman = ATHMAN_AYAH.filter(function(a){ return a.surah===surahN; })
+    .sort(function(a,b){ return a.ayahStart-b.ayahStart; });
+
+  if(!surahAthman.length) return {count:0, from:0, to:0, label:''};
+
+  // نحدد الثمن الذي تقع فيه آية البداية
+  var fromAthman = 1;
+  for(var i=0; i<surahAthman.length; i++){
+    if(surahAthman[i].ayahStart <= ayahFrom){
+      fromAthman = surahAthman[i].n;
+    } else { break; }
+  }
+
+  // نحدد الثمن الذي تقع فيه آية النهاية
+  var toAthman = fromAthman;
+  for(var j=0; j<surahAthman.length; j++){
+    if(surahAthman[j].ayahStart <= ayahTo){
+      toAthman = surahAthman[j].n;
+    } else { break; }
+  }
+
+  var count = toAthman - fromAthman + 1;
+  var label = count===1
+    ? 'الثمن '+fromAthman
+    : 'من الثمن '+fromAthman+' إلى الثمن '+toAthman+' ('+count+' أثمان)';
+
+  return {count:count, from:fromAthman, to:toAthman, label:label};
+}
+
+// حساب وعرض الأثمان تلقائياً عند تغيير الآيات
+function updateAutoAthman(){
+  var surahN = parseInt(document.getElementById('daily-surah-select').value)||0;
+  var ayahFrom = parseInt(document.getElementById('daily-ayah-from').value)||0;
+  var ayahTo = parseInt(document.getElementById('daily-ayah-to').value)||0;
+
+  var autoEl = document.getElementById('auto-athman-display');
+  if(!autoEl) return;
+
+  if(!surahN || !ayahFrom || !ayahTo){
+    autoEl.style.display='none'; return;
+  }
+
+  var result = calcAthmanFromAyah(surahN, ayahFrom, ayahTo);
+  if(result.count>0){
+    autoEl.style.display='block';
+    autoEl.innerHTML='📊 <b>الأثمان المحسوبة تلقائياً:</b> '+result.label;
+  } else {
+    autoEl.style.display='none';
+  }
+}
+
 </script>
 </body>
-    </html>
+                                                                                                                                                                                </html>
