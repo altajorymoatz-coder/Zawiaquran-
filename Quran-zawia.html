@@ -289,11 +289,11 @@ tr:hover td{background:rgba(200,168,75,.05);}
         <div class="g2" style="margin-bottom:10px;">
           <div class="form-group">
             <label>من آية</label>
-            <input type="number" id="daily-ayah-from" oninput="updateAutoAthman()" placeholder="رقم الآية" min="1">
+            <input type="number" id="daily-ayah-from" oninput="updatePagesFromAyah()" oninput="updatePagesFromAyah()" placeholder="رقم الآية" min="1">
           </div>
           <div class="form-group">
             <label>إلى آية</label>
-            <input type="number" id="daily-ayah-to" oninput="updateAutoAthman()" placeholder="رقم الآية" min="1">
+            <input type="number" id="daily-ayah-to" oninput="updatePagesFromAyah()" oninput="updatePagesFromAyah()" placeholder="رقم الآية" min="1">
           </div>
         </div>
 
@@ -1490,7 +1490,7 @@ const ATHMAN_DATA = [
 ];
 
 // دالة لجلب أثمان سورة معينة
-Function getAthmanForSurah(surahN) {
+function getAthmanForSurah(surahN) {
   return ATHMAN_DATA.filter(a => a.surah === surahN);
 }
 const AJZAA_START = [
@@ -1510,19 +1510,17 @@ let reviews  = [];
 let nextId   = 1;
 
 
-// حفظ في JSONBin مع آلية الحفظ الذكي والـ Debounce الآمن
+// حفظ في JSONBin
 function save(){
-  // 1. حفظ محلي فوري دائماً لحماية البيانات في المتصفح فوراً
+  // 1. حفظ محلي فوري دائماً
   localStorage.setItem('kq_students',JSON.stringify(students));
   localStorage.setItem('kq_logs',JSON.stringify(logs));
   localStorage.setItem('kq_reviews',JSON.stringify(reviews));
   localStorage.setItem('kq_nextId',String(nextId));
-  
-  // 2. نضع علامة تغيير محلي
+  // 2. نضع علامة تغيير
   window._dirty=true;
   if(typeof updateCloudBtn==='function') updateCloudBtn();
-  
-  // 3. ننتظر 4 ثواني بعد آخر تسجيل لمنع استهلاك طلبات الـ API
+  // 3. debounce - ننتظر 4 ثواني بعد آخر تغيير ثم نرفع مرة واحدة
   clearTimeout(window._saveTimer);
   window._saveTimer=setTimeout(function(){
     if(!window._BIN || !window._KEY) return;
@@ -1536,6 +1534,7 @@ function save(){
         window._dirty=false;
         if(typeof updateCloudBtn==='function') updateCloudBtn();
       } else {
+        // فشل - اتركها للمزامنة اليدوية
         window._dirty=true;
         if(typeof updateCloudBtn==='function') updateCloudBtn();
       }
@@ -1544,15 +1543,14 @@ function save(){
       window._dirty=true;
       if(typeof updateCloudBtn==='function') updateCloudBtn();
     });
-  }, 4000); 
+  }, 4000); // 4 ثواني بعد آخر تغيير
 }
 
-// مزامنة ذكية آمنة — تمنع مسح البيانات المحلية إذا كانت أحدث من السحاب
+// مزامنة لحظية — يُنفَّذ عند أي تغيير من أي جهاز
 function initApp(){
   window._BIN='6a2415b2f5f4af5e29c244ff';
   window._KEY='$2a$10$MASATqBATaYvptBopZNJ.O7QL0rfnje484/dNAWupvnM9awwlKry.';
   window._dirty=false;
-  
   fetch('https://api.jsonbin.io/v3/b/'+window._BIN+'/latest',{
     headers:{'X-Access-Key':window._KEY}
   })
@@ -1561,30 +1559,24 @@ function initApp(){
     var d=data.record||{};
     var cS=d.students||[]; var lS=JSON.parse(localStorage.getItem('kq_students')||'[]');
     var cL=d.logs||[];     var lL=JSON.parse(localStorage.getItem('kq_logs')||'[]');
-    var cR=d.reviews||[];  var lR=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
-    
-    // شبكة الأمان المحدثة: قارن السجلات والطلاب معاً لضمان عدم استبدال بيانات جديدة بقديمة
-    if(cS.length >= lS.length && cL.length >= lL.length && cR.length >= lR.length){
-      students=cS; logs=cL; reviews=cR; nextId=d.nextId||1;
+    if(cS.length>=lS.length){
+      students=cS; logs=cL; reviews=d.reviews||[]; nextId=d.nextId||1;
     } else {
-      // الذاكرة المحلية أحدث، اعتمدها وارفعها للسحاب لاحقاً
-      students=lS; logs=lL; reviews=lR;
+      students=lS; logs=lL;
+      reviews=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
       nextId=parseInt(localStorage.getItem('kq_nextId')||'1');
       window._dirty=true;
     }
-    
     localStorage.setItem('kq_students',JSON.stringify(students));
     localStorage.setItem('kq_logs',JSON.stringify(logs));
     localStorage.setItem('kq_reviews',JSON.stringify(reviews));
     localStorage.setItem('kq_nextId',String(nextId));
-    
     autoMarkUnrecorded();
     renderHome(); renderStudentsTable(); fillAllStudentSels();
     if(typeof updateCloudBtn==='function') updateCloudBtn();
-    showToast('☁️ تم المزامنة بنجاح مع السحابة');
+    showToast('☁️ تم الاتصال بـ JSONBin');
   })
   .catch(function(){
-    // في حال انقطاع النت، يعمل النظام محلياً بالكامل دون مشاكل
     students=JSON.parse(localStorage.getItem('kq_students')||'[]');
     logs=JSON.parse(localStorage.getItem('kq_logs')||'[]');
     reviews=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
@@ -1593,13 +1585,20 @@ function initApp(){
     autoMarkUnrecorded();
     renderHome(); renderStudentsTable(); fillAllStudentSels();
     if(typeof updateCloudBtn==='function') updateCloudBtn();
-    showToast('⚠️ وضع محلي آمن — اضغط ☁️ للمزامنة اليدوية');
+    showToast('⚠️ وضع محلي — اضغط ☁️ للمزامنة');
   });
 }
 
 // ==================== Helpers ====================
 function today(){ return new Date().toISOString().split('T')[0]; }
-function fmtDate(d){ if(!d) return '—'; const[y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; }
+function fmtDate(d){
+  if(!d) return '—';
+  var parts=d.split('-');
+  var y=parts[0]; var m=parts[1]; var dd=parts[2];
+  var days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  var dayName=days[new Date(parseInt(y),parseInt(m)-1,parseInt(dd)).getDay()];
+  return dayName+' '+dd+'/'+m+'/'+y;
+}
 function showToast(msg){ var t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); clearTimeout(window._tt); window._tt=setTimeout(function(){t.classList.remove('show');},2000); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function openModal(id){ document.getElementById(id).classList.add('open'); }
@@ -1612,12 +1611,12 @@ function showTab(name,btn){
   if(name==='home') renderHome();
   if(name==='daily'){ fillStudentSel('daily-student'); renderLogHistory(); }
   if(name==='review'){ fillStudentSel('review-student'); renderReviewsTable(); }
+  if(name==='attendance'){ renderAttendanceToday(); var ad=document.getElementById('absence-date'); if(ad) ad.value=today(); renderAbsenceByDate(); }
   if(name==='reports'){ fillStudentSel('report-student'); renderReports(); }
 }
 
 function fillStudentSel(selId){
   const sel=document.getElementById(selId);
-  if(!sel) return;
   const v=sel.value;
   sel.innerHTML='<option value="">-- اختر طالباً --</option>';
   students.sort((a,b)=>a.id-b.id).forEach(s=>{
@@ -1629,10 +1628,10 @@ function fillStudentSel(selId){
   if(v) sel.value=v;
 }
 
+// بحث سريع في قائمة الطلاب
 function filterStudentSel(inputId, selId){
   const q=document.getElementById(inputId).value.trim().toLowerCase();
   const sel=document.getElementById(selId);
-  if(!sel) return;
   sel.innerHTML='<option value="">-- اختر طالباً --</option>';
   students.sort((a,b)=>a.id-b.id).filter(s=>{
     const idStr=String(s.id).padStart(3,'0');
@@ -1666,6 +1665,7 @@ function addStudent(){
   if(!name){ showToast('⚠️ أدخل اسم الطالب'); return; }
   const sn=parseInt(document.getElementById('reg-surah').value)||0;
   const surahObj=getSurah(sn);
+  // nextId دائماً أعلى من أي كود موجود — لا يُعاد استخدام الأرقام
   const maxExisting=students.length?Math.max(...students.map(s=>s.id)):0;
   if(nextId<=maxExisting) nextId=maxExisting+1;
   const s={
@@ -1766,6 +1766,8 @@ function saveEditStudent(){
 // ==================== التقرير الشهري ====================
 function printMonthlyReport(sid){
   const s=students.find(x=>x.id===sid); if(!s) return;
+
+  // اختيار الشهر
   const monthInput=window.prompt('أدخل الشهر والسنة (مثال: 2025-01):',today().substring(0,7));
   if(!monthInput) return;
 
@@ -1773,9 +1775,11 @@ function printMonthlyReport(sid){
   const readLogs=sLogs.filter(l=>l.attendance==='read'||!l.attendance);
   const presentLogs=sLogs.filter(l=>l.attendance==='present');
   const absentLogs=sLogs.filter(l=>l.attendance==='absent');
+  const unrecLogs=sLogs.filter(l=>l.attendance==='unrecorded');
   const totalPages=readLogs.reduce((a,b)=>a+(b.pages||0),0);
   const totalAthman=readLogs.reduce((a,b)=>a+(b.athmanCount||0),0);
 
+  // الأيام في الشهر
   const [yr,mo]=monthInput.split('-').map(Number);
   const daysInMonth=new Date(yr,mo,0).getDate();
   const monthName=new Date(yr,mo-1,1).toLocaleDateString('ar-SA',{month:'long',year:'numeric'});
@@ -1818,6 +1822,7 @@ function printMonthlyReport(sid){
     <thead><tr><th>التاريخ</th><th>الحالة</th><th>السورة</th><th>الأثمان</th><th>الصفحات</th><th>ملاحظات</th></tr></thead>
     <tbody>`;
 
+  // كل أيام الشهر
   for(let d=1;d<=daysInMonth;d++){
     const dayStr=`${monthInput}-${String(d).padStart(2,'0')}`;
     const l=sLogs.find(x=>x.date===dayStr);
@@ -1875,14 +1880,17 @@ function showStudentModal(id){
 
 // ==================== DAILY LOG ====================
 
+// حساب صفحات الثمن من الفرق مع التالي
 function getAthmanPages(surahN, athmanN){
-  if(typeof ATHMAN_DATA !== 'undefined') {
-    const idx=ATHMAN_DATA.findIndex(a=>a.surah===surahN&&a.n===athmanN);
-    if(idx!==-1 && ATHMAN_DATA[idx+1]) return Math.max(1, ATHMAN_DATA[idx+1].page - ATHMAN_DATA[idx].page);
-  }
-  return 2; 
+  const all=ATHMAN_DATA;
+  const idx=all.findIndex(a=>a.surah===surahN&&a.n===athmanN);
+  if(idx===-1) return 2;
+  const next=all[idx+1];
+  if(!next) return 2;
+  return Math.max(1, next.page - all[idx].page);
 }
 
+// تعبئة قائمة الأثمان — إما كل أثمان السورة أو أثمان الحزب فقط
 function fillAthmanSel(surahN, filterHizb){
   const athFrom=document.getElementById('daily-athman-from');
   const athTo=document.getElementById('daily-athman-to');
@@ -1890,6 +1898,7 @@ function fillAthmanSel(surahN, filterHizb){
 
   let list=ATHMAN.filter(a=>a[0]===surahN);
 
+  // إذا تم اختيار حزب، صفّر الأثمان بناءً عليه
   if(filterHizb){
     const hizbsOfSurah=AHZAB.filter(a=>a[1]===surahN).map(a=>a[0]);
     const hizbIdx=hizbsOfSurah.indexOf(filterHizb);
@@ -1917,6 +1926,7 @@ function onDailySurahChange(){
   opts.style.opacity='1'; opts.style.pointerEvents='auto';
   const s=getSurah(n);
 
+  // === الأجزاء ===
   const juzSel=document.getElementById('daily-juz-sel');
   juzSel.innerHTML='<option value="">اختر الجزء...</option>';
   const nextS=SURAHS_DATA.find(x=>x.n===n+1);
@@ -1930,6 +1940,7 @@ function onDailySurahChange(){
     juzSel.innerHTML='<option value="">—</option>'; juzSel.disabled=true;
   }
 
+  // === الأحزاب — كل أحزاب السورة مباشرة ===
   const hizbSel=document.getElementById('daily-hizb-sel');
   hizbSel.innerHTML='<option value="">اختر الحزب...</option>';
   const hizbsInSurah=AHZAB.filter(a=>a[1]===n);
@@ -1940,7 +1951,10 @@ function onDailySurahChange(){
     hizbSel.innerHTML='<option value="">سورة أقل من حزب</option>'; hizbSel.disabled=true;
   }
 
+  // === الأثمان — كل أثمان السورة مباشرة ===
   fillAthmanSel(n, null);
+
+  // تصفير الحساب
   const calcBox=document.getElementById('auto-calc-box');
   if(calcBox) calcBox.style.display='none';
   document.getElementById('daily-pages').value='';
@@ -1950,10 +1964,10 @@ function onJuzChange(){
   const n=parseInt(document.getElementById('daily-surah-select').value);
   const juz=parseInt(document.getElementById('daily-juz-sel').value);
   const hizbSel=document.getElementById('daily-hizb-sel');
-  if(!hizbSel) return;
   hizbSel.innerHTML='<option value="">اختر الحزب...</option>';
   if(!juz||!n){ hizbSel.disabled=true; return; }
 
+  // الحزبان في هذا الجزء اللذان ينتميان لهذه السورة
   const hizbStart=(juz-1)*2+1;
   const hizbEnd=hizbStart+1;
   const hizbsInSurah=AHZAB.filter(a=>a[1]===n).map(a=>a[0]);
@@ -1963,15 +1977,18 @@ function onJuzChange(){
     hizbsToShow.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=`الحزب ${h}`; hizbSel.appendChild(o); });
     hizbSel.disabled=false;
   } else {
+    // إذا لم يوجد حزب مطابق، أظهر كل أحزاب السورة
     hizbsInSurah.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=`الحزب ${h}`; hizbSel.appendChild(o); });
     hizbSel.disabled=hizbsInSurah.length===0;
   }
+  // صفّر الأثمان لكل أثمان السورة (لم يختر حزب بعد)
   fillAthmanSel(n, null);
 }
 
 function onHizbChange(){
   const n=parseInt(document.getElementById('daily-surah-select').value);
   const hizb=parseInt(document.getElementById('daily-hizb-sel').value);
+  // صفّر الأثمان بناءً على الحزب
   fillAthmanSel(n, hizb||null);
 }
 
@@ -2003,21 +2020,26 @@ function addDailyLog(){
   const st=students.find(x=>x.id===sid);
   if(!st){ showToast('❌ الطالب غير موجود'); return; }
 
+  // حذف سجل الغياب التلقائي فوراً عند أي تسجيل
+  const autoIdx=logs.findIndex(function(l){ return l.studentId===sid&&l.date===date&&l.autoMarked; });
+  if(autoIdx>-1) logs.splice(autoIdx,1);
+
+  // حضر ولم يقرأ أو غائب
   if(currentAttendance==='heard'){
+    // سبب عدم الحفظ
     const hrEl=document.getElementById('heard-reason');
     const hrNote=hrEl?hrEl.value.trim():'';
+    // السورة اختيارية
     const hn=parseInt(document.getElementById('daily-surah-select').value)||0;
     const ho=getSurah(hn);
+    // الأثمان والآيات اختيارية
     const hAthFrom=parseInt(document.getElementById('daily-athman-from')?.value)||0;
     const hAthTo=parseInt(document.getElementById('daily-athman-to')?.value)||0;
     const hAyahFrom=parseInt(document.getElementById('daily-ayah-from')?.value)||0;
     const hAyahTo=parseInt(document.getElementById('daily-ayah-to')?.value)||0;
     const hJuz=parseInt(document.getElementById('daily-juz-sel')?.value)||0;
     const hHizb=parseInt(document.getElementById('daily-hizb-sel')?.value)||0;
-    
-    const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.autoMarked);
-    if(unrecIdx>-1) logs.splice(unrecIdx,1);
-    
+    // حذف سجل الغياب التلقائي إن وجد
     logs.push({
       id:Date.now(), studentId:sid, date, attendance:'heard',
       pages:0, surahN:hn, surahName:ho?ho.name:'',
@@ -2031,13 +2053,9 @@ function addDailyLog(){
     showToast('✅ '+st.name+' — قرأ ولم يحفظ');
     resetDailyForm(); renderLogHistory(); return;
   }
-  
   if(currentAttendance!=='read'){
     const attNoteEl=document.getElementById('att-note');
     const attNote=attNoteEl?attNoteEl.value.trim():'';
-    const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date);
-    if(unrecIdx>-1) logs.splice(unrecIdx,1);
-    
     logs.push({ id:Date.now(), studentId:sid, date, attendance:currentAttendance,
       surahN:0, surahName:'', pages:0, ayahFrom:0, ayahTo:0,
       juz:0, hizb:0, athman:'', note:attNote });
@@ -2047,6 +2065,7 @@ function addDailyLog(){
     resetDailyForm(); renderLogHistory(); return;
   }
 
+  // حضر وقرأ
   const surahN=parseInt(document.getElementById('daily-surah-select').value);
   if(!surahN){ showToast('⚠️ اختر السورة أولاً'); return; }
   const surahObj=getSurah(surahN);
@@ -2067,9 +2086,10 @@ function addDailyLog(){
   const dup=logs.find(l=>l.studentId===sid&&l.date===date&&l.attendance!=='unrecorded');
   if(dup&&!window.confirm('يوجد سجل لهذا الطالب في نفس التاريخ، إضافة سجل إضافي؟')) return;
 
-  const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date);
+  const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.attendance==='unrecorded');
   if(unrecIdx>-1) logs.splice(unrecIdx,1);
 
+  // نص الثمن
   const athText=athFromVal?ATHMAN.find(a=>a[0]===surahN&&a[1]===athFromVal)?.[3]||'':'';
   const athLabel=athFromVal?(athCount>1?`الثمن ${athFromVal}–${athToVal} (${athCount} أثمان)`:`الثمن ${athFromVal} — ${athText.substring(0,30)}`):'';
 
@@ -2104,7 +2124,7 @@ function resetDailyForm(){
   const an=document.getElementById('att-note-section');
   if(an) an.style.display='none';
   const opts=document.getElementById('daily-opts');
-  if(opts) { opts.style.opacity='.3'; opts.style.pointerEvents='none'; }
+  opts.style.opacity='.3'; opts.style.pointerEvents='none';
   const cb=document.getElementById('auto-calc-box');
   if(cb) cb.style.display='none';
   currentAttendance='';
@@ -2118,7 +2138,6 @@ function resetDailyForm(){
 function renderLogHistory(){
   const sid=parseInt(document.getElementById('daily-student').value);
   const cont=document.getElementById('log-history-content');
-  if(!cont) return;
   if(!sid){ cont.innerHTML='<div class="empty-state"><div class="icon">📅</div><div>اختر طالباً لعرض سجله</div></div>'; return; }
   const sLogs=logs.filter(l=>l.studentId===sid).sort((a,b)=>b.date.localeCompare(a.date));
   const tp=sLogs.reduce((a,b)=>a+(b.pages||0),0);
@@ -2142,6 +2161,7 @@ function renderLogHistory(){
           ${l.juz?`<span style="color:#a0c0a8"> • الجزء ${l.juz}</span>`:''}
           ${l.hizb?`<span style="color:#a0c0a8"> • الحزب ${l.hizb}</span>`:''}
           ${l.athman?`<span style="color:#a0c0a8"> • ثمن</span>`:''}
+          ${l.from?`<br><small style="color:#688a78">من: ${l.from}${l.to?' — إلى: '+l.to:''}</small>`:''}
           ${l.note?`<br><small style="color:#7a9a88">📝 ${l.note}</small>`:''}
         </span>
         <div style="text-align:left;">
@@ -2162,7 +2182,6 @@ function deleteLog(lid){
 function onReviewStudentChange(){
   const sid=parseInt(document.getElementById('review-student').value);
   const fields=document.getElementById('review-form-fields');
-  if(!fields) return;
   if(!sid){ fields.innerHTML='<div class="empty-state" style="padding:18px;"><div>اختر طالباً لتعبئة بيانات المراجعة</div></div>'; return; }
   const s=students.find(x=>x.id===sid);
   fields.innerHTML=`
@@ -2211,7 +2230,7 @@ function onReviewStudentChange(){
     <button class="btn btn-primary" onclick="saveReview(${sid})">💾 حفظ المراجعة</button>
   `;
   fillSurahSel('rev-from-sel'); fillSurahSel('rev-to-sel');
-  
+  // update text fields on surah select
   var _rfs=document.getElementById('rev-from-sel'); if(_rfs) _rfs.addEventListener('change',function(){ const s=getSurah(this.value); if(s) document.getElementById('review-from').value=s.name+' آية 1'; });
   var _rts=document.getElementById('rev-to-sel'); if(_rts) _rts.addEventListener('change',function(){ const s=getSurah(this.value); if(s) document.getElementById('review-to').value=s.name+' آية '+s.ayat; });
 }
@@ -2227,26 +2246,6 @@ function saveReview(sid){
   reviews.push({id:Date.now(),studentId:sid,date,from,to,athman,rating,note});
   save(); showToast('✅ تم حفظ المراجعة');
   onReviewStudentChange(); renderReviewsTable();
-}
-
-// تعديل أخطاء الـ أثمان التي تم مراجعتها ( الـ 11 ثمن المغلوطة )
-if (typeof ATHMAN !== 'undefined' && ATHMAN.length > 0) {
-  ATHMAN.forEach(a => {
-    if (a[0] === 2 && a[1] === 9) a[3] = "وَإِن يَأْتُوكُمْ أُسَارَىٰ تُفَادُوهُمْ";
-    if (a[0] === 2 && a[1] === 35) a[3] = "يَا أَيُّهَا الَّذِينَ آمَنُوا أَنفِقُوا مِمَّا رَزَقْنَاكُم";
-    if (a[0] === 3 && a[1] === 6) a[3] = "فَلَمَّا أَحَسَّ عِيسَىٰ مِنْهُمُ الْكُفْرَ";
-    if (a[0] === 3 && a[1] === 9) a[3] = "كُلُّ الطَّعَامِ كَانَ حِلًّا لِّبَنِي إِسْرَائِيلَ";
-    if (a[0] === 6 && a[1] === 2) a[3] = "Wَلَهُ مَا سَكَنَ فِي اللَّيْلِ وَالنَّهَارِ";
-    if (a[0] === 6 && a[1] === 18) a[3] = "قُلْ هَلُمَّ شُهَدَاءَكُمُ الَّذِينَ يَشْهَدُونَ";
-    if (a[0] === 7 && a[1] === 2) a[3] = "وَكَم مِّن قَرْيَةٍ أَهْلَكْنَاهَا فَجَاءَهَا بَأْسُنَا";
-    if (a[0] === 13 && a[1] === 1) a[3] = "وَإِن تَعْجَبْ فَعَجَبٌ قَوْلُهمْ أَإِذَا كُنَّا تُرَابًا";
-    if (a[0] === 26 && a[1] === 3) a[3] = "قَالُوا أَرْجِهْ وَأَخَاهُ وَابْعَثْ فِي الْمَدَائِنِ حَاشِرِينَ";
-    if (a[0] === 44 && a[1] === 1) a[3] = "كَمْ تَرَكُوا مِن جَنَّاتٍ وَعُيُونٍ";
-  });
-  const hzIdx = ATHMAN.findIndex(a => a[0] === 33 && a[1] === 6);
-  if (hzIdx !== -1 && typeof ATHMAN_DATA !== 'undefined' && ATHMAN_DATA[hzIdx]) {
-     ATHMAN_DATA[hzIdx].page = 424; 
-  }
 }
 
 function deleteReview(rid){
@@ -2321,7 +2320,6 @@ function renderHome(){
     <div class="stat-card"><div class="stat-number">${activeToday}</div><div class="stat-label">قرأ اليوم</div></div>
   `;
   const cont=document.getElementById('home-students-list');
-  if(!cont) return;
   if(!students.length){ cont.innerHTML='<div class="empty-state"><div class="icon">👥</div><div>لا يوجد طلاب مسجلون بعد</div></div>'; return; }
   const sorted=[...students].sort((a,b)=>a.id-b.id);
   cont.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
@@ -2392,7 +2390,6 @@ function renderReports(){
 function renderStudentReport(){
   const sid=parseInt(document.getElementById('report-student').value);
   const cont=document.getElementById('student-report-content');
-  if(!cont) return;
   if(!sid){ cont.innerHTML='<div class="empty-state"><div class="icon">👤</div><div>اختر طالباً</div></div>'; return; }
   const s=students.find(x=>x.id===sid);
   const sLogs=logs.filter(l=>l.studentId===sid).sort((a,b)=>b.date.localeCompare(a.date));
@@ -2435,7 +2432,6 @@ fillSurahSel('reg-surah');
 fillSurahSel('reg-start-surah');
 fillSurahSel('daily-surah-select');
 fillSurahSel('edit-surah');
-
 var _ds=document.getElementById('daily-student'); if(_ds) _ds.addEventListener('change', function(){
   renderLogHistory();
   const sid=parseInt(this.value);
@@ -2445,9 +2441,11 @@ var _ds=document.getElementById('daily-student'); if(_ds) _ds.addEventListener('
     document.getElementById('daily-surah-select').value=s.surahN;
     onDailySurahChange();
   }
+  // تفعيل حضر وقرأ تلقائياً
   setTimeout(function(){ if(typeof setAttendance==='function') setAttendance('read'); }, 100);
 });
 
+// نبدأ تحميل البيانات من JSONBin
 initApp();
 
 // ==================== زر السحابة JSONBin ====================
@@ -2456,14 +2454,13 @@ function updateCloudBtn(){
   if(window._dirty){
     btn.style.background='linear-gradient(135deg,#8a6f2e,#5c4a1e)';
     btn.style.borderColor='var(--gold)'; btn.innerHTML='☁️💾';
-    btn.title = 'يوجد تغييرات جديدة — اضغط للحفظ السريع في السحابة';
+    btn.title='يوجد تغييرات — اضغط للحفظ في السحابة';
   } else {
     btn.style.background='linear-gradient(135deg,#1a5c38,#0d3320)';
     btn.style.borderColor='rgba(200,168,75,.4)'; btn.innerHTML='☁️';
-    btn.title='البيانات متطابقة ومحفوظة بالسحاب ✅';
+    btn.title='البيانات محفوظة ✅';
   }
 }
-
 function syncToCloud(){
   var btn=document.getElementById('cloud-save-btn');
   if(btn){btn.innerHTML='⏳';btn.style.opacity='0.7';}
@@ -2478,17 +2475,18 @@ function syncToCloud(){
       localStorage.setItem('kq_logs',JSON.stringify(logs));
       localStorage.setItem('kq_reviews',JSON.stringify(reviews));
       localStorage.setItem('kq_nextId',String(nextId));
-      updateCloudBtn(); showToast('✅ تم المزامنة السحابية بنجاح عارم!');
+      updateCloudBtn(); showToast('✅ تم الحفظ في السحابة');
     } else {
-      showToast('❌ فشل الرفع للسحاب');
+      showToast('❌ فشل الحفظ');
       if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
     }
   }).catch(function(){
-    showToast('❌ تحقق من جودة اتصال الانترنت');
+    showToast('❌ تحقق من الاتصال');
     if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
   });
 }
 
+// ==================== قائمة الطلاب ====================
 function fillAllStudentSels(){
   var sel=document.getElementById('daily-student');
   if(sel){
@@ -2521,7 +2519,7 @@ function autoMarkUnrecorded(){
   save();
 }
 
-// ==================== الحضور والغياب اليومي ====================
+// ==================== الحضور والغياب ====================
 function renderAttendanceToday(){ renderAttendanceForDate(today(),'attendance-today-content'); }
 function renderAbsenceByDate(){
   var date=document.getElementById('absence-date').value; if(!date) return;
@@ -2624,8 +2622,7 @@ function printForDate(date,title){
     +'<tbody>'+rows+'</tbody></table></body></html>';
   var w=window.open('','_blank'); w.document.write(html); w.document.close(); w.print();
 }
-
-function printMonthlyReportForStudent(){
+function printMonthlyReport(){
   var sid=parseInt(document.getElementById('monthly-student')?document.getElementById('monthly-student').value:0);
   var month=document.getElementById('monthly-month')?document.getElementById('monthly-month').value:'';
   if(!sid||!month){showToast('اختر الطالب والشهر');return;}
@@ -2638,6 +2635,7 @@ function printMonthlyReportForStudent(){
   var hL=sL.filter(function(l){return l.attendance==='heard';});
   var pL=sL.filter(function(l){return l.attendance==='present';});
   var aL=sL.filter(function(l){return l.attendance==='absent';});
+  var tP=rL.reduce(function(a,b){return a+(b.pages||0);},0);
   var rows=sL.sort(function(a,b){return a.date.localeCompare(b.date);}).map(function(l){
     var att='✅ حضر وقرأ'; var col='#1a5c38';
     if(l.attendance==='heard'){att='📖 قرأ ولم يحفظ';col='#4169e1';}
@@ -2660,6 +2658,7 @@ function printMonthlyReportForStudent(){
   var w=window.open('','_blank'); w.document.write(html); w.document.close(); w.print();
 }
 
+// ==================== حالة الحضور ====================
 var currentAttendance='';
 function setAttendance(type){
   currentAttendance=type;
@@ -2679,6 +2678,7 @@ function setAttendance(type){
   var rs=document.getElementById('surah-section');
   var nb=document.getElementById('att-note-section');
   var opts=document.getElementById('daily-opts');
+  // قرأ ولم يحفظ: يظهر السورة بس ما يحتاج باقي الخيارات
   if(type==='heard'){
     if(rs) rs.style.display='block';
     if(nb) nb.style.display='block';
@@ -2694,7 +2694,8 @@ function setAttendance(type){
   }
 }
 
-// ==================== حساب العمر تلقائياً ====================
+
+// ==================== حساب العمر/سنة الميلاد تلقائياً ====================
 function calcAgeFromYear(year){
   var y=parseInt(year);
   if(!y||y<1950||y>2025) return;
@@ -2728,7 +2729,8 @@ function calcEditYearFromAge(age){
   if(el) el.value=year;
 }
 
-// ==================== بحث سريع في السور ====================
+
+// ==================== بحث في السور ====================
 function filterSurahSel(inputId, selId){
   var q = document.getElementById(inputId).value.trim();
   var sel = document.getElementById(selId);
@@ -2745,9 +2747,160 @@ function filterSurahSel(inputId, selId){
     if(String(s.n) === String(val)) o.selected = true;
     sel.appendChild(o);
   });
+  // نحافظ على القيمة المختارة إن كانت في النتائج
   if(val) sel.value = val;
+}
+
+
+// جدول آيات بداية كل ثمن {surah, n, ayahStart}
+const ATHMAN_AYAH = [
+  // الفاتحة
+  {surah:1, n:1, ayahStart:1},
+  // البقرة
+  {surah:2, n:1, ayahStart:1},   {surah:2, n:2, ayahStart:26},  {surah:2, n:3, ayahStart:44},
+  {surah:2, n:4, ayahStart:60},  {surah:2, n:5, ayahStart:75},  {surah:2, n:6, ayahStart:87},
+  {surah:2, n:7, ayahStart:102}, {surah:2, n:8, ayahStart:114}, {surah:2, n:9, ayahStart:128},
+  {surah:2, n:10, ayahStart:142},{surah:2, n:11, ayahStart:153},{surah:2, n:12, ayahStart:163},
+  {surah:2, n:13, ayahStart:172},{surah:2, n:14, ayahStart:182},{surah:2, n:15, ayahStart:191},
+  {surah:2, n:16, ayahStart:203},{surah:2, n:17, ayahStart:211},{surah:2, n:18, ayahStart:220},
+  {surah:2, n:19, ayahStart:228},{surah:2, n:20, ayahStart:238},{surah:2, n:21, ayahStart:246},
+  {surah:2, n:22, ayahStart:253},{surah:2, n:23, ayahStart:260},{surah:2, n:24, ayahStart:268},
+  {surah:2, n:25, ayahStart:275},{surah:2, n:26, ayahStart:282},{surah:2, n:27, ayahStart:286},
+  {surah:2, n:28, ayahStart:286},{surah:2, n:29, ayahStart:286},{surah:2, n:30, ayahStart:286},
+  {surah:2, n:31, ayahStart:286},{surah:2, n:32, ayahStart:286},{surah:2, n:33, ayahStart:286},
+  {surah:2, n:34, ayahStart:286},{surah:2, n:35, ayahStart:286},{surah:2, n:36, ayahStart:286},
+  {surah:2, n:37, ayahStart:286},{surah:2, n:38, ayahStart:286},
+  // آل عمران
+  {surah:3, n:1, ayahStart:1},   {surah:3, n:2, ayahStart:14},  {surah:3, n:3, ayahStart:29},
+  {surah:3, n:4, ayahStart:44},  {surah:3, n:5, ayahStart:55},  {surah:3, n:6, ayahStart:64},
+  {surah:3, n:7, ayahStart:79},  {surah:3, n:8, ayahStart:92},  {surah:3, n:9, ayahStart:102},
+  {surah:3, n:10, ayahStart:114},{surah:3, n:11, ayahStart:122},{surah:3, n:12, ayahStart:132},
+  {surah:3, n:13, ayahStart:142},{surah:3, n:14, ayahStart:152},{surah:3, n:15, ayahStart:162},
+  {surah:3, n:16, ayahStart:170},{surah:3, n:17, ayahStart:180},{surah:3, n:18, ayahStart:187},
+  {surah:3, n:19, ayahStart:194},{surah:3, n:20, ayahStart:200},{surah:3, n:21, ayahStart:200},
+  // النساء
+  {surah:4, n:1, ayahStart:1},   {surah:4, n:2, ayahStart:12},  {surah:4, n:3, ayahStart:24},
+  {surah:4, n:4, ayahStart:36},  {surah:4, n:5, ayahStart:48},  {surah:4, n:6, ayahStart:58},
+  {surah:4, n:7, ayahStart:69},  {surah:4, n:8, ayahStart:78},  {surah:4, n:9, ayahStart:88},
+  {surah:4, n:10, ayahStart:100},{surah:4, n:11, ayahStart:110},{surah:4, n:12, ayahStart:116},
+  {surah:4, n:13, ayahStart:124},{surah:4, n:14, ayahStart:135},{surah:4, n:15, ayahStart:141},
+  {surah:4, n:16, ayahStart:148},{surah:4, n:17, ayahStart:155},{surah:4, n:18, ayahStart:162},
+  {surah:4, n:19, ayahStart:169},{surah:4, n:20, ayahStart:176},{surah:4, n:21, ayahStart:176},
+  {surah:4, n:22, ayahStart:176},{surah:4, n:23, ayahStart:176},{surah:4, n:24, ayahStart:176},
+];
+
+// ==================== حساب الأثمان من الآيات ====================
+function calcAthmanFromAyah(surahN, ayahFrom, ayahTo){
+  if(!surahN || !ayahFrom || !ayahTo) return {count:0, from:0, to:0, label:''};
+
+  // نجيب أثمان هذه السورة مرتبة
+  var surahAthman = ATHMAN_AYAH.filter(function(a){ return a.surah===surahN; })
+    .sort(function(a,b){ return a.ayahStart-b.ayahStart; });
+
+  if(!surahAthman.length) return {count:0, from:0, to:0, label:''};
+
+  // نحدد الثمن الذي تقع فيه آية البداية
+  var fromAthman = 1;
+  for(var i=0; i<surahAthman.length; i++){
+    if(surahAthman[i].ayahStart <= ayahFrom){
+      fromAthman = surahAthman[i].n;
+    } else { break; }
+  }
+
+  // نحدد الثمن الذي تقع فيه آية النهاية
+  var toAthman = fromAthman;
+  for(var j=0; j<surahAthman.length; j++){
+    if(surahAthman[j].ayahStart <= ayahTo){
+      toAthman = surahAthman[j].n;
+    } else { break; }
+  }
+
+  var count = toAthman - fromAthman + 1;
+  var label = count===1
+    ? 'الثمن '+fromAthman
+    : 'من الثمن '+fromAthman+' إلى الثمن '+toAthman+' ('+count+' أثمان)';
+
+  return {count:count, from:fromAthman, to:toAthman, label:label};
+}
+
+// حساب وعرض الأثمان تلقائياً عند تغيير الآيات
+function updateAutoAthman(){
+  var surahN = parseInt(document.getElementById('daily-surah-select').value)||0;
+  var ayahFrom = parseInt(document.getElementById('daily-ayah-from').value)||0;
+  var ayahTo = parseInt(document.getElementById('daily-ayah-to').value)||0;
+
+  var autoEl = document.getElementById('auto-athman-display');
+  if(!autoEl) return;
+
+  if(!surahN || !ayahFrom || !ayahTo){
+    autoEl.style.display='none'; return;
+  }
+
+  var result = calcAthmanFromAyah(surahN, ayahFrom, ayahTo);
+  if(result.count>0){
+    autoEl.style.display='block';
+    autoEl.innerHTML='📊 <b>الأثمان المحسوبة تلقائياً:</b> '+result.label;
+  } else {
+    autoEl.style.display='none';
+  }
+}
+
+
+// ==================== جدول متوسط أسطر الآية لكل سورة ====================
+// linesPerAyah = متوسط عدد الأسطر لكل آية في هذه السورة
+// كل صفحة = 15 سطر في مصحف الداني
+const SURAH_LINES = {
+  1:3.0,  2:0.6,  3:0.7,  4:0.7,  5:0.8,  6:0.6,  7:0.5,  8:0.7,
+  9:0.7, 10:0.7, 11:0.7, 12:0.7, 13:0.9, 14:0.9, 15:1.0, 16:0.6,
+  17:0.7, 18:0.7, 19:0.9, 20:0.7, 21:0.7, 22:0.8, 23:0.7, 24:0.7,
+  25:0.8, 26:0.5, 27:0.7, 28:0.7, 29:0.8, 30:0.8, 31:1.0, 32:1.0,
+  33:0.7, 34:0.8, 35:0.9, 36:0.8, 37:0.6, 38:0.8, 39:0.7, 40:0.7,
+  41:0.8, 42:0.8, 43:0.7, 44:1.0, 45:0.9, 46:0.9, 47:0.8, 48:1.0,
+  49:1.1, 50:1.0, 51:0.9, 52:1.0, 53:0.9, 54:0.8, 55:0.9, 56:0.8,
+  57:0.9, 58:0.9, 59:1.0, 60:1.0, 61:1.1, 62:1.2, 63:1.1, 64:1.0,
+  65:1.0, 66:1.0, 67:0.9, 68:0.9, 69:0.9, 70:0.9, 71:1.0, 72:0.9,
+  73:1.1, 74:0.9, 75:1.0, 76:1.0, 77:0.8, 78:1.0, 79:0.9, 80:1.0,
+  81:1.1, 82:1.2, 83:0.8, 84:1.2, 85:1.2, 86:1.3, 87:1.4, 88:1.2,
+  89:1.0, 90:1.3, 91:1.4, 92:1.3, 93:1.6, 94:2.0, 95:1.8, 96:1.3,
+  97:2.0, 98:1.2, 99:1.8, 100:1.3,101:1.5,102:1.8,103:2.5,104:1.5,
+  105:2.0,106:2.5,107:1.8,108:3.0,109:2.0,110:2.5,111:2.0,112:2.5,
+  113:2.0,114:2.0
+};
+
+// ==================== حساب الصفحات من الآيات ====================
+function calcPagesFromAyah(surahN, ayahFrom, ayahTo){
+  if(!surahN || !ayahFrom || !ayahTo || ayahTo < ayahFrom) return 0;
+  var linesPerAyah = SURAH_LINES[surahN] || 0.8;
+  var ayahCount = ayahTo - ayahFrom + 1;
+  var totalLines = ayahCount * linesPerAyah;
+  var pages = totalLines / 15; // 15 سطر في الصفحة
+  return Math.round(pages * 100) / 100; // تقريب لرقمين عشريين
+}
+
+// ==================== تحديث الصفحات تلقائياً من الآيات ====================
+function updatePagesFromAyah(){
+  var surahN = parseInt(document.getElementById('daily-surah-select').value)||0;
+  var ayahFrom = parseInt(document.getElementById('daily-ayah-from').value)||0;
+  var ayahTo = parseInt(document.getElementById('daily-ayah-to').value)||0;
+  if(!surahN || !ayahFrom || !ayahTo) return;
+
+  var pages = calcPagesFromAyah(surahN, ayahFrom, ayahTo);
+  if(pages > 0){
+    var pagesEl = document.getElementById('daily-pages');
+    if(pagesEl && !pagesEl.value) pagesEl.value = pages;
+
+    // عرض الحساب التلقائي
+    var autoEl = document.getElementById('auto-athman-display');
+    if(autoEl){
+      var lines = Math.round((ayahTo - ayahFrom + 1) * (SURAH_LINES[surahN]||0.8) * 10)/10;
+      autoEl.style.display = 'block';
+      autoEl.innerHTML = '📏 <b>الحساب التلقائي:</b> '+(ayahTo-ayahFrom+1)+' آية = '+lines+' سطر ≈ <b>'+pages+' صفحة</b>';
+    }
+    // أيضاً حساب الأثمان
+    updateAutoAthman();
+  }
 }
 
 </script>
 </body>
-</html>
+  </html>
