@@ -1512,11 +1512,13 @@ let nextId   = 1;
 
 // حفظ في JSONBin
 function save(){
+  var _now=Date.now();
   // 1. حفظ محلي فوري دائماً
   localStorage.setItem('kq_students',JSON.stringify(students));
   localStorage.setItem('kq_logs',JSON.stringify(logs));
   localStorage.setItem('kq_reviews',JSON.stringify(reviews));
   localStorage.setItem('kq_nextId',String(nextId));
+  localStorage.setItem('kq_lastSaved',String(_now));
   // 2. نضع علامة تغيير
   window._dirty=true;
   if(typeof updateCloudBtn==='function') updateCloudBtn();
@@ -1527,7 +1529,7 @@ function save(){
     fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
       method:'PUT',
       headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
-      body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId})
+      body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId,lastSaved:_now})
     })
     .then(function(r){
       if(r.ok){
@@ -1557,23 +1559,41 @@ function initApp(){
   .then(function(r){return r.json();})
   .then(function(data){
     var d=data.record||{};
-    var cS=d.students||[]; var lS=JSON.parse(localStorage.getItem('kq_students')||'[]');
-    var cL=d.logs||[];     var lL=JSON.parse(localStorage.getItem('kq_logs')||'[]');
-    if(cS.length>=lS.length){
-      students=cS; logs=cL; reviews=d.reviews||[]; nextId=d.nextId||1;
+    var cS=d.students||[];
+    var cL=d.logs||[];
+    var cR=d.reviews||[];
+    var cN=d.nextId||1;
+    var cT=d.lastSaved||0;
+
+    var lS=JSON.parse(localStorage.getItem('kq_students')||'[]');
+    var lL=JSON.parse(localStorage.getItem('kq_logs')||'[]');
+    var lR=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
+    var lN=parseInt(localStorage.getItem('kq_nextId')||'1');
+    var lT=parseInt(localStorage.getItem('kq_lastSaved')||'0');
+
+    // نأخذ الأحدث بناءً على timestamp
+    // لو البيانات المحلية أحدث من السحابة نستخدمها ونرفعها
+    if(lT > cT){
+      // البيانات المحلية أحدث
+      students=lS; logs=lL; reviews=lR; nextId=lN;
+      window._dirty=true; // ارفعها للسحابة
     } else {
-      students=lS; logs=lL;
-      reviews=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
-      nextId=parseInt(localStorage.getItem('kq_nextId')||'1');
-      window._dirty=true;
+      // بيانات السحابة أحدث أو متساوية
+      students=cS; logs=cL; reviews=cR; nextId=cN;
+      window._dirty=false;
+      // تحديث localStorage
+      localStorage.setItem('kq_students',JSON.stringify(students));
+      localStorage.setItem('kq_logs',JSON.stringify(logs));
+      localStorage.setItem('kq_reviews',JSON.stringify(reviews));
+      localStorage.setItem('kq_nextId',String(nextId));
+      localStorage.setItem('kq_lastSaved',String(cT));
     }
-    localStorage.setItem('kq_students',JSON.stringify(students));
-    localStorage.setItem('kq_logs',JSON.stringify(logs));
-    localStorage.setItem('kq_reviews',JSON.stringify(reviews));
-    localStorage.setItem('kq_nextId',String(nextId));
+
     autoMarkUnrecorded();
     renderHome(); renderStudentsTable(); fillAllStudentSels();
     if(typeof updateCloudBtn==='function') updateCloudBtn();
+    // لو البيانات المحلية أحدث ارفعها فوراً
+    if(window._dirty) syncToCloud();
     showToast('☁️ تم الاتصال بـ JSONBin');
   })
   .catch(function(){
@@ -2464,10 +2484,11 @@ function updateCloudBtn(){
 function syncToCloud(){
   var btn=document.getElementById('cloud-save-btn');
   if(btn){btn.innerHTML='⏳';btn.style.opacity='0.7';}
+  var _now2=Date.now();
   fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
     method:'PUT',
     headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
-    body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId})
+    body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId,lastSaved:_now2})
   }).then(function(r){
     if(r.ok){
       window._dirty=false;
@@ -2475,6 +2496,7 @@ function syncToCloud(){
       localStorage.setItem('kq_logs',JSON.stringify(logs));
       localStorage.setItem('kq_reviews',JSON.stringify(reviews));
       localStorage.setItem('kq_nextId',String(nextId));
+      localStorage.setItem('kq_lastSaved',String(_now2));
       updateCloudBtn(); showToast('✅ تم الحفظ في السحابة');
     } else {
       showToast('❌ فشل الحفظ');
@@ -2903,4 +2925,4 @@ function updatePagesFromAyah(){
 
 </script>
 </body>
-</html>
+  </html>
