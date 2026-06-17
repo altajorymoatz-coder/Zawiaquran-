@@ -1525,27 +1525,43 @@ function save(){
   // 3. debounce - ننتظر 4 ثواني بعد آخر تغيير ثم نرفع مرة واحدة
   clearTimeout(window._saveTimer);
   window._saveTimer=setTimeout(function(){
-    if(!window._BIN || !window._KEY) return;
-    fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
-      method:'PUT',
-      headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
-      body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId,lastSaved:_now})
-    })
-    .then(function(r){
-      if(r.ok){
-        window._dirty=false;
-        if(typeof updateCloudBtn==='function') updateCloudBtn();
-      } else {
-        // فشل - اتركها للمزامنة اليدوية
-        window._dirty=true;
-        if(typeof updateCloudBtn==='function') updateCloudBtn();
-      }
-    })
-    .catch(function(){
-      window._dirty=true;
-      if(typeof updateCloudBtn==='function') updateCloudBtn();
-    });
+    uploadToCloud(_now, 0);
   }, 4000); // 4 ثواني بعد آخر تغيير
+}
+
+function uploadToCloud(ts, attempt){
+  if(!window._BIN || !window._KEY) return;
+  fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+    body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId,lastSaved:ts})
+  })
+  .then(function(r){
+    if(r.ok){
+      window._dirty=false;
+      localStorage.setItem('kq_lastSaved',String(ts));
+      if(typeof updateCloudBtn==='function') updateCloudBtn();
+    } else {
+      r.text().then(function(t){ console.error('JSONBin save failed:', r.status, t); });
+      retryOrGiveUp(ts, attempt);
+    }
+  })
+  .catch(function(err){
+    console.error('Network error while saving:', err);
+    retryOrGiveUp(ts, attempt);
+  });
+}
+
+function retryOrGiveUp(ts, attempt){
+  if(attempt < 2){
+    // نعيد المحاولة تلقائياً (حتى 3 مرات إجمالاً) بعد 3 ثواني
+    setTimeout(function(){ uploadToCloud(ts, attempt+1); }, 3000);
+  } else {
+    // فشلت كل المحاولات — اتركها للمزامنة اليدوية بالزر
+    window._dirty=true;
+    if(typeof updateCloudBtn==='function') updateCloudBtn();
+    showToast('⚠️ تعذّر الرفع للسحابة — اضغط ☁️ يدوياً');
+  }
 }
 
 // مزامنة لحظية — يُنفَّذ عند أي تغيير من أي جهاز
@@ -2499,11 +2515,15 @@ function syncToCloud(){
       localStorage.setItem('kq_lastSaved',String(_now2));
       updateCloudBtn(); showToast('✅ تم الحفظ في السحابة');
     } else {
-      showToast('❌ فشل الحفظ');
+      r.text().then(function(errText){
+        console.error('JSONBin error:', r.status, errText);
+        showToast('❌ فشل الحفظ (كود '+r.status+') — اضغط مجدداً');
+      });
       if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
     }
-  }).catch(function(){
-    showToast('❌ تحقق من الاتصال');
+  }).catch(function(err){
+    console.error('Network error:', err);
+    showToast('❌ تحقق من الاتصال: '+(err.message||'خطأ شبكة'));
     if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
   });
 }
@@ -2925,4 +2945,4 @@ function updatePagesFromAyah(){
 
 </script>
 </body>
-  </html>
+</html>
