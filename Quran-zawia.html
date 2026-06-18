@@ -1639,19 +1639,18 @@ function initApp(){
   window._dirty=false;
 
   // 1. نجيب بيانات الطلاب من بينهم الخاص
+  // كل طلب مستقل عن الباقي - لو واحد فشل الباقي يكمل
   var pStudents = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_STUDENTS+'/latest',{
     headers:{'X-Access-Key':window._KEY}
-  }).then(function(r){return r.json();}).catch(function(){return {record:{}};});
+  }).then(function(r){return r.ok?r.json():{record:{}};}).catch(function(){return {record:{}};});
 
-  // 2. نجيب المراجعات من بينها الخاص
   var pReviews = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_REVIEWS+'/latest',{
     headers:{'X-Access-Key':window._KEY}
-  }).then(function(r){return r.json();}).catch(function(){return {record:{}};});
+  }).then(function(r){return r.ok?r.json():{record:{}};}).catch(function(){return {record:{}};});
 
-  // 3. نجيب البين القديم الكبير (لو لسا فيه بيانات لم تُنقل، ننقلها مرة واحدة فقط)
   var pOld = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_OLD+'/latest',{
     headers:{'X-Access-Key':window._KEY}
-  }).then(function(r){return r.json();}).catch(function(){return {record:{}};});
+  }).then(function(r){return r.ok?r.json():{record:{}};}).catch(function(){return {record:{}};});
 
   Promise.all([pStudents, pReviews, pOld]).then(function(results){
     var dStudents = results[0].record || {};
@@ -1684,9 +1683,11 @@ function initApp(){
     var oldLogs = dOld.logs || [];
 
     if(!migrated && oldLogs.length){
+      showToast('⏳ نقل البيانات القديمة لأول مرة... لا تغلق الصفحة');
       // نوزّع السجلات القديمة على بينات شهرية جديدة تلقائياً
       migrateOldLogsToMonthlyBins(oldLogs, function(){
         localStorage.setItem('kq_migrated_old_logs','true');
+        showToast('✅ تم نقل البيانات القديمة بنجاح');
         loadCurrentMonthLogs();
       });
     } else {
@@ -1720,16 +1721,18 @@ function migrateOldLogsToMonthlyBins(oldLogs, done){
     byMonth[mk].push(l);
   });
   var months = Object.keys(byMonth);
+  if(months.length===0){ done(); return; }
   var i=0;
   function next(){
     if(i>=months.length){ done(); return; }
     var mk = months[i];
     var monthLogs = byMonth[mk];
     saveMonthLogsToBin(mk, monthLogs, function(){
-      i++; next();
+      i++;
+      // فترة قصيرة بين كل طلب لتجنب أي تضارب شبكة
+      setTimeout(next, 400);
     });
   }
-  if(months.length===0){ done(); return; }
   next();
 }
 
