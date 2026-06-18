@@ -1638,77 +1638,70 @@ function createMonthBin(monthKey, callback){
 function initApp(){
   window._dirty=false;
 
-  // 1. نجيب بيانات الطلاب من بينهم الخاص
-  // كل طلب مستقل عن الباقي - لو واحد فشل الباقي يكمل
-  var pStudents = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_STUDENTS+'/latest',{
+  // أولاً: تحميل البيانات المحلية فوراً لعرض شيء للمستخدم بدون انتظار
+  students=JSON.parse(localStorage.getItem('kq_students')||'[]');
+  logs=JSON.parse(localStorage.getItem('kq_logs')||'[]');
+  reviews=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
+  nextId=parseInt(localStorage.getItem('kq_nextId')||'1');
+  autoMarkUnrecorded();
+  renderHome(); renderStudentsTable(); fillAllStudentSels();
+  if(typeof updateCloudBtn==='function') updateCloudBtn();
+
+  // ثانياً: جلب بيانات الطلاب من السحابة (طلب واحد فقط أولاً)
+  fetch('https://api.jsonbin.io/v3/b/'+window._BIN_STUDENTS+'/latest',{
     headers:{'X-Access-Key':window._KEY}
-  }).then(function(r){return r.ok?r.json():{record:{}};}).catch(function(){return {record:{}};});
-
-  var pReviews = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_REVIEWS+'/latest',{
-    headers:{'X-Access-Key':window._KEY}
-  }).then(function(r){return r.ok?r.json():{record:{}};}).catch(function(){return {record:{}};});
-
-  var pOld = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_OLD+'/latest',{
-    headers:{'X-Access-Key':window._KEY}
-  }).then(function(r){return r.ok?r.json():{record:{}};}).catch(function(){return {record:{}};});
-
-  Promise.all([pStudents, pReviews, pOld]).then(function(results){
-    var dStudents = results[0].record || {};
-    var dReviews  = results[1].record || {};
-    var dOld      = results[2].record || {};
-
-    var cloudStudents = dStudents.students || [];
-    var cloudReviews  = dReviews.reviews || [];
-    var cloudNextId   = dStudents.nextId || dOld.nextId || 1;
-    var cloudStudentsTime = dStudents.lastSaved || 0;
-
-    var lS=JSON.parse(localStorage.getItem('kq_students')||'[]');
-    var lR=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
-    var lN=parseInt(localStorage.getItem('kq_nextId')||'1');
+  })
+  .then(function(r){ return r.ok?r.json():{record:{}}; })
+  .catch(function(){ return {record:{}}; })
+  .then(function(dStudents){
+    var cloudStudents = (dStudents.record||{}).students || [];
+    var cloudNextId   = (dStudents.record||{}).nextId   || nextId;
+    var cloudTime     = (dStudents.record||{}).lastSaved|| 0;
     var lT=parseInt(localStorage.getItem('kq_lastSaved')||'0');
 
-    if(lT > cloudStudentsTime){
-      students=lS; reviews=lR; nextId=lN;
-      window._dirty=true;
-    } else {
-      students=cloudStudents; reviews=cloudReviews; nextId=cloudNextId;
+    if(cloudStudents.length && cloudTime >= lT){
+      students=cloudStudents;
+      nextId=cloudNextId;
       localStorage.setItem('kq_students',JSON.stringify(students));
-      localStorage.setItem('kq_reviews',JSON.stringify(reviews));
       localStorage.setItem('kq_nextId',String(nextId));
-      localStorage.setItem('kq_lastSaved',String(cloudStudentsTime));
+      localStorage.setItem('kq_lastSaved',String(cloudTime));
+      renderHome(); renderStudentsTable(); fillAllStudentSels();
     }
 
-    // ===== نقل بيانات السجلات القديمة (مرة واحدة فقط) =====
-    var migrated = localStorage.getItem('kq_migrated_old_logs');
-    var oldLogs = dOld.logs || [];
-
-    if(!migrated && oldLogs.length){
-      showToast('⏳ نقل البيانات القديمة لأول مرة... لا تغلق الصفحة');
-      // نوزّع السجلات القديمة على بينات شهرية جديدة تلقائياً
-      migrateOldLogsToMonthlyBins(oldLogs, function(){
-        localStorage.setItem('kq_migrated_old_logs','true');
-        showToast('✅ تم نقل البيانات القديمة بنجاح');
+    // ثالثاً: بعد الطلاب نجيب السجلات (بتأخير عشان ما يتعارضوا)
+    setTimeout(function(){
+      var migrated = localStorage.getItem('kq_migrated_old_logs');
+      if(!migrated){
+        // نجيب البين القديم لنقل بياناته (مرة واحدة فقط)
+        fetch('https://api.jsonbin.io/v3/b/'+window._BIN_OLD+'/latest',{
+          headers:{'X-Access-Key':window._KEY}
+        })
+        .then(function(r){ return r.ok?r.json():{record:{}}; })
+        .catch(function(){ return {record:{}}; })
+        .then(function(dOld){
+          var oldLogs = (dOld.record||{}).logs || [];
+          if(oldLogs.length){
+            showToast('⏳ نقل البيانات القديمة... لا تغلق الصفحة');
+            // نحفظ السجلات القديمة محلياً أولاً كنسخة احتياطية
+            logs = oldLogs;
+            localStorage.setItem('kq_logs', JSON.stringify(logs));
+            renderHome();
+            // ثم ننقلها للبينات الشهرية تدريجياً
+            migrateOldLogsToMonthlyBins(oldLogs, function(){
+              localStorage.setItem('kq_migrated_old_logs','true');
+              showToast('✅ تم نقل البيانات القديمة بنجاح');
+              loadCurrentMonthLogs();
+            });
+          } else {
+            loadCurrentMonthLogs();
+          }
+        });
+      } else {
         loadCurrentMonthLogs();
-      });
-    } else {
-      loadCurrentMonthLogs();
-    }
+      }
+    }, 1000); // ننتظر ثانية بعد تحميل الطلاب
 
-    autoMarkUnrecorded();
-    renderHome(); renderStudentsTable(); fillAllStudentSels();
-    if(typeof updateCloudBtn==='function') updateCloudBtn();
-    if(window._dirty) syncToCloud();
     showToast('☁️ تم الاتصال بـ JSONBin');
-  }).catch(function(){
-    students=JSON.parse(localStorage.getItem('kq_students')||'[]');
-    logs=JSON.parse(localStorage.getItem('kq_logs')||'[]');
-    reviews=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
-    nextId=parseInt(localStorage.getItem('kq_nextId')||'1');
-    window._dirty=true;
-    autoMarkUnrecorded();
-    renderHome(); renderStudentsTable(); fillAllStudentSels();
-    if(typeof updateCloudBtn==='function') updateCloudBtn();
-    showToast('⚠️ وضع محلي — اضغط ☁️ للمزامنة');
   });
 }
 
