@@ -1529,22 +1529,49 @@ function save(){
   }, 4000); // 4 ثواني بعد آخر تغيير
 }
 
+// يرفع الطلاب + المراجعات (صغار) لبيناتهم، وسجلات كل الشهور المتأثرة لبيناتها الشهرية
 function uploadToCloud(ts, attempt){
-  if(!window._BIN || !window._KEY) return;
-  fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
+  if(!window._KEY) return;
+
+  var pStudents = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_STUDENTS,{
     method:'PUT',
     headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
-    body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId,lastSaved:ts})
-  })
-  .then(function(r){
-    if(r.ok){
+    body:JSON.stringify({students:students,nextId:nextId,lastSaved:ts})
+  });
+
+  var pReviews = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_REVIEWS,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+    body:JSON.stringify({reviews:reviews,lastSaved:ts})
+  });
+
+  // نوزّع logs الحالية على الأشهر الموجودة فيها ونرفع كل شهر متأثر لبينه
+  var byMonth = {};
+  logs.forEach(function(l){
+    var mk = getMonthKey(l.date);
+    if(!byMonth[mk]) byMonth[mk]=[];
+    byMonth[mk].push(l);
+  });
+  var monthKeys = Object.keys(byMonth);
+  var pLogs = monthKeys.map(function(mk){
+    return new Promise(function(resolve){
+      saveMonthLogsToBin(mk, byMonth[mk], resolve);
+    });
+  });
+
+  Promise.all([pStudents, pReviews].concat(pLogs))
+  .then(function(results){
+    var sRes = results[0];
+    var rRes = results[1];
+    if(sRes.ok && rRes.ok){
       window._dirty=false;
       localStorage.setItem('kq_lastSaved',String(ts));
       if(typeof updateCloudBtn==='function') updateCloudBtn();
     } else {
-      r.text().then(function(t){
-        console.error('JSONBin save failed:', r.status, t);
-        window._lastErrorDetail = 'كود '+r.status+': '+t;
+      Promise.resolve(!sRes.ok?sRes.text():rRes.text()).then(function(t){
+        var badStatus = !sRes.ok?sRes.status:rRes.status;
+        console.error('JSONBin save failed:', badStatus, t);
+        window._lastErrorDetail = 'كود '+badStatus+': '+t;
       });
       retryOrGiveUp(ts, attempt);
     }
@@ -1569,54 +1596,109 @@ function retryOrGiveUp(ts, attempt){
 }
 
 // مزامنة لحظية — يُنفَّذ عند أي تغيير من أي جهاز
-function initApp(){
-  window._BIN='6a2415b2f5f4af5e29c244ff';
-  window._KEY='$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
-  window._dirty=false;
-  fetch('https://api.jsonbin.io/v3/b/'+window._BIN+'/latest',{
-    headers:{'X-Access-Key':window._KEY}
+// ==================== إعدادات JSONBin المقسّمة ====================
+window._BIN_STUDENTS = '6a33d338da38895dfed694fb';
+window._BIN_REVIEWS  = '6a33d361da38895dfed695d3';
+window._BIN_OLD      = '6a2415b2f5f4af5e29c244ff'; // البين الكبير القديم (للنقل التلقائي مرة واحدة)
+window._KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
+
+// كل شهر بياناته في بين خاص بيه: نخزن خريطة { "2026-06": "binId", ... } في localStorage
+// لو الشهر ما عنده بين بعد، أول save() ليه يخلق بين جديد تلقائياً عبر JSONBin API (POST)
+function getMonthKey(dateStr){ return (dateStr||today()).substring(0,7); } // "2026-06"
+
+function getLogsBinMap(){
+  try{ return JSON.parse(localStorage.getItem('kq_logs_bin_map')||'{}'); }catch(e){ return {}; }
+}
+function saveLogsBinMap(map){
+  localStorage.setItem('kq_logs_bin_map', JSON.stringify(map));
+}
+
+// ينشئ بين جديد فاضي على JSONBin ويرجع الـ ID عبر callback
+function createMonthBin(monthKey, callback){
+  fetch('https://api.jsonbin.io/v3/b',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+    body:JSON.stringify({logs:[]})
   })
-  .then(function(r){return r.json();})
+  .then(function(r){ return r.json(); })
   .then(function(data){
-    var d=data.record||{};
-    var cS=d.students||[];
-    var cL=d.logs||[];
-    var cR=d.reviews||[];
-    var cN=d.nextId||1;
-    var cT=d.lastSaved||0;
+    var newId = data.metadata && data.metadata.id;
+    if(newId){
+      var map=getLogsBinMap();
+      map[monthKey]=newId;
+      saveLogsBinMap(map);
+      callback(newId);
+    } else {
+      callback(null);
+    }
+  })
+  .catch(function(){ callback(null); });
+}
+
+function initApp(){
+  window._dirty=false;
+
+  // 1. نجيب بيانات الطلاب من بينهم الخاص
+  var pStudents = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_STUDENTS+'/latest',{
+    headers:{'X-Access-Key':window._KEY}
+  }).then(function(r){return r.json();}).catch(function(){return {record:{}};});
+
+  // 2. نجيب المراجعات من بينها الخاص
+  var pReviews = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_REVIEWS+'/latest',{
+    headers:{'X-Access-Key':window._KEY}
+  }).then(function(r){return r.json();}).catch(function(){return {record:{}};});
+
+  // 3. نجيب البين القديم الكبير (لو لسا فيه بيانات لم تُنقل، ننقلها مرة واحدة فقط)
+  var pOld = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_OLD+'/latest',{
+    headers:{'X-Access-Key':window._KEY}
+  }).then(function(r){return r.json();}).catch(function(){return {record:{}};});
+
+  Promise.all([pStudents, pReviews, pOld]).then(function(results){
+    var dStudents = results[0].record || {};
+    var dReviews  = results[1].record || {};
+    var dOld      = results[2].record || {};
+
+    var cloudStudents = dStudents.students || [];
+    var cloudReviews  = dReviews.reviews || [];
+    var cloudNextId   = dStudents.nextId || dOld.nextId || 1;
+    var cloudStudentsTime = dStudents.lastSaved || 0;
 
     var lS=JSON.parse(localStorage.getItem('kq_students')||'[]');
-    var lL=JSON.parse(localStorage.getItem('kq_logs')||'[]');
     var lR=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
     var lN=parseInt(localStorage.getItem('kq_nextId')||'1');
     var lT=parseInt(localStorage.getItem('kq_lastSaved')||'0');
 
-    // نأخذ الأحدث بناءً على timestamp
-    // لو البيانات المحلية أحدث من السحابة نستخدمها ونرفعها
-    if(lT > cT){
-      // البيانات المحلية أحدث
-      students=lS; logs=lL; reviews=lR; nextId=lN;
-      window._dirty=true; // ارفعها للسحابة
+    if(lT > cloudStudentsTime){
+      students=lS; reviews=lR; nextId=lN;
+      window._dirty=true;
     } else {
-      // بيانات السحابة أحدث أو متساوية
-      students=cS; logs=cL; reviews=cR; nextId=cN;
-      window._dirty=false;
-      // تحديث localStorage
+      students=cloudStudents; reviews=cloudReviews; nextId=cloudNextId;
       localStorage.setItem('kq_students',JSON.stringify(students));
-      localStorage.setItem('kq_logs',JSON.stringify(logs));
       localStorage.setItem('kq_reviews',JSON.stringify(reviews));
       localStorage.setItem('kq_nextId',String(nextId));
-      localStorage.setItem('kq_lastSaved',String(cT));
+      localStorage.setItem('kq_lastSaved',String(cloudStudentsTime));
+    }
+
+    // ===== نقل بيانات السجلات القديمة (مرة واحدة فقط) =====
+    var migrated = localStorage.getItem('kq_migrated_old_logs');
+    var oldLogs = dOld.logs || [];
+
+    if(!migrated && oldLogs.length){
+      // نوزّع السجلات القديمة على بينات شهرية جديدة تلقائياً
+      migrateOldLogsToMonthlyBins(oldLogs, function(){
+        localStorage.setItem('kq_migrated_old_logs','true');
+        loadCurrentMonthLogs();
+      });
+    } else {
+      loadCurrentMonthLogs();
     }
 
     autoMarkUnrecorded();
     renderHome(); renderStudentsTable(); fillAllStudentSels();
     if(typeof updateCloudBtn==='function') updateCloudBtn();
-    // لو البيانات المحلية أحدث ارفعها فوراً
     if(window._dirty) syncToCloud();
     showToast('☁️ تم الاتصال بـ JSONBin');
-  })
-  .catch(function(){
+  }).catch(function(){
     students=JSON.parse(localStorage.getItem('kq_students')||'[]');
     logs=JSON.parse(localStorage.getItem('kq_logs')||'[]');
     reviews=JSON.parse(localStorage.getItem('kq_reviews')||'[]');
@@ -1627,6 +1709,95 @@ function initApp(){
     if(typeof updateCloudBtn==='function') updateCloudBtn();
     showToast('⚠️ وضع محلي — اضغط ☁️ للمزامنة');
   });
+}
+
+// نوزّع كل سجلات البين القديم على بينات شهرية حسب تاريخ كل سجل
+function migrateOldLogsToMonthlyBins(oldLogs, done){
+  var byMonth = {};
+  oldLogs.forEach(function(l){
+    var mk = getMonthKey(l.date);
+    if(!byMonth[mk]) byMonth[mk]=[];
+    byMonth[mk].push(l);
+  });
+  var months = Object.keys(byMonth);
+  var i=0;
+  function next(){
+    if(i>=months.length){ done(); return; }
+    var mk = months[i];
+    var monthLogs = byMonth[mk];
+    saveMonthLogsToBin(mk, monthLogs, function(){
+      i++; next();
+    });
+  }
+  if(months.length===0){ done(); return; }
+  next();
+}
+
+// يحفظ سجلات شهر معيّن في بينه (يخلقه لو ما موجود)
+function saveMonthLogsToBin(monthKey, monthLogs, done){
+  var map=getLogsBinMap();
+  var binId = map[monthKey];
+  if(binId){
+    fetch('https://api.jsonbin.io/v3/b/'+binId,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+      body:JSON.stringify({logs:monthLogs})
+    }).then(function(){ done&&done(); }).catch(function(){ done&&done(); });
+  } else {
+    createMonthBin(monthKey, function(newId){
+      if(!newId){ done&&done(); return; }
+      fetch('https://api.jsonbin.io/v3/b/'+newId,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+        body:JSON.stringify({logs:monthLogs})
+      }).then(function(){ done&&done(); }).catch(function(){ done&&done(); });
+    });
+  }
+}
+
+// يحمّل سجلات الشهر الحالي + الشهر الماضي (لعرض كافٍ في الصفحة الرئيسية والتقارير)
+function loadCurrentMonthLogs(){
+  var map=getLogsBinMap();
+  var thisMonth = getMonthKey(today());
+  var d=new Date(); d.setMonth(d.getMonth()-1);
+  var lastMonth = d.toISOString().substring(0,7);
+
+  var monthsToLoad = [thisMonth, lastMonth].filter(function(mk){ return map[mk]; });
+
+  if(!monthsToLoad.length){
+    logs = JSON.parse(localStorage.getItem('kq_logs')||'[]');
+    renderHome(); renderStudentsTable();
+    return;
+  }
+
+  var promises = monthsToLoad.map(function(mk){
+    return fetch('https://api.jsonbin.io/v3/b/'+map[mk]+'/latest',{
+      headers:{'X-Access-Key':window._KEY}
+    }).then(function(r){return r.json();}).then(function(d){
+      return (d.record&&d.record.logs)||[];
+    }).catch(function(){ return []; });
+  });
+
+  Promise.all(promises).then(function(results){
+    var merged=[];
+    results.forEach(function(arr){ merged=merged.concat(arr); });
+    logs = merged;
+    localStorage.setItem('kq_logs', JSON.stringify(logs));
+    renderHome(); renderStudentsTable();
+    if(typeof renderAttendanceToday==='function') renderAttendanceToday();
+  });
+}
+
+// يحمّل سجلات شهر معيّن عند الطلب (مثلاً عند فتح تقرير شهر قديم)
+function loadLogsForMonth(monthKey, callback){
+  var map=getLogsBinMap();
+  var binId = map[monthKey];
+  if(!binId){ callback([]); return; }
+  fetch('https://api.jsonbin.io/v3/b/'+binId+'/latest',{
+    headers:{'X-Access-Key':window._KEY}
+  }).then(function(r){return r.json();}).then(function(d){
+    callback((d.record&&d.record.logs)||[]);
+  }).catch(function(){ callback([]); });
 }
 
 // ==================== Helpers ====================
@@ -2505,12 +2676,35 @@ function syncToCloud(){
   var btn=document.getElementById('cloud-save-btn');
   if(btn){btn.innerHTML='⏳';btn.style.opacity='0.7';}
   var _now2=Date.now();
-  fetch('https://api.jsonbin.io/v3/b/'+window._BIN,{
+
+  var pStudents = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_STUDENTS,{
     method:'PUT',
     headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
-    body:JSON.stringify({students:students,logs:logs,reviews:reviews,nextId:nextId,lastSaved:_now2})
-  }).then(function(r){
-    if(r.ok){
+    body:JSON.stringify({students:students,nextId:nextId,lastSaved:_now2})
+  });
+
+  var pReviews = fetch('https://api.jsonbin.io/v3/b/'+window._BIN_REVIEWS,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+    body:JSON.stringify({reviews:reviews,lastSaved:_now2})
+  });
+
+  var byMonth = {};
+  logs.forEach(function(l){
+    var mk = getMonthKey(l.date);
+    if(!byMonth[mk]) byMonth[mk]=[];
+    byMonth[mk].push(l);
+  });
+  var pLogs = Object.keys(byMonth).map(function(mk){
+    return new Promise(function(resolve){
+      saveMonthLogsToBin(mk, byMonth[mk], resolve);
+    });
+  });
+
+  Promise.all([pStudents, pReviews].concat(pLogs)).then(function(results){
+    var sRes = results[0];
+    var rRes = results[1];
+    if(sRes.ok && rRes.ok){
       window._dirty=false;
       localStorage.setItem('kq_students',JSON.stringify(students));
       localStorage.setItem('kq_logs',JSON.stringify(logs));
@@ -2519,11 +2713,12 @@ function syncToCloud(){
       localStorage.setItem('kq_lastSaved',String(_now2));
       updateCloudBtn(); showToast('✅ تم الحفظ في السحابة');
     } else {
-      r.text().then(function(errText){
-        console.error('JSONBin error:', r.status, errText);
+      Promise.resolve(!sRes.ok?sRes.text():rRes.text()).then(function(errText){
+        var badStatus = !sRes.ok?sRes.status:rRes.status;
+        console.error('JSONBin error:', badStatus, errText);
         var shortMsg='';
         try{ var pj=JSON.parse(errText); shortMsg=pj.message||errText; }catch(e){ shortMsg=errText; }
-        showToast('❌ خطأ '+r.status+': '+shortMsg.substring(0,60));
+        showToast('❌ خطأ '+badStatus+': '+shortMsg.substring(0,60));
       });
       if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
     }
@@ -2675,10 +2870,27 @@ function printMonthlyReport(){
   var month=document.getElementById('monthly-month')?document.getElementById('monthly-month').value:'';
   if(!sid||!month){showToast('اختر الطالب والشهر');return;}
   var s=students.find(function(x){return x.id===sid;}); if(!s) return;
+
+  // لو الشهر المطلوب غير محمّل حالياً في logs، نجيبه من بينه الخاص أولاً
+  var hasMonthLoaded = logs.some(function(l){ return l.date && l.date.startsWith(month); });
+  var map = getLogsBinMap();
+  if(!hasMonthLoaded && map[month]){
+    showToast('⏳ جاري تحميل بيانات الشهر...');
+    loadLogsForMonth(month, function(monthLogs){
+      renderMonthlyReportHTML(s, month, monthLogs);
+    });
+  } else {
+    var sL=logs.filter(function(l){return l.studentId===sid&&l.date&&l.date.startsWith(month);});
+    renderMonthlyReportHTML(s, month, sL.length?sL:logs.filter(function(l){return l.date&&l.date.startsWith(month);}));
+  }
+}
+
+function renderMonthlyReportHTML(s, month, monthLogsAll){
+  var sid=s.id;
   var parts=month.split('-');
   var mN=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
   var mn=mN[parseInt(parts[1])-1]+' '+parts[0];
-  var sL=logs.filter(function(l){return l.studentId===sid&&l.date&&l.date.startsWith(month);});
+  var sL=monthLogsAll.filter(function(l){return l.studentId===sid;});
   var rL=sL.filter(function(l){return l.attendance==='read';});
   var hL=sL.filter(function(l){return l.attendance==='heard';});
   var pL=sL.filter(function(l){return l.attendance==='present';});
