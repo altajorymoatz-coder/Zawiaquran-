@@ -453,6 +453,8 @@ tr:hover td{background:rgba(200,168,75,.05);}
 </div>
 
 <div class="toast" id="toast"></div>
+<button onclick="resetMigrationManually()" title="إعادة محاولة نقل البيانات القديمة"
+  style="position:fixed;bottom:24px;right:16px;z-index:9998;background:rgba(200,168,75,.15);border:1px solid rgba(200,168,75,.4);color:var(--gold);border-radius:50%;width:42px;height:42px;font-size:1rem;cursor:pointer;">🔄</button>
 
 <!-- شاشة التحميل -->
 <div id="loading-overlay" style="display:none!important;">
@@ -1604,6 +1606,38 @@ window._KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
 
 // كل شهر بياناته في بين خاص بيه: نخزن خريطة { "2026-06": "binId", ... } في localStorage
 // لو الشهر ما عنده بين بعد، أول save() ليه يخلق بين جديد تلقائياً عبر JSONBin API (POST)
+// ==================== إعادة محاولة نقل البيانات القديمة يدوياً ====================
+function resetMigrationManually(){
+  if(!window.confirm('سيُعاد فحص ونقل السجلات القديمة من جديد. هل تريد الاستمرار؟')) return;
+  localStorage.removeItem('kq_migrated_old_logs');
+  showToast('⏳ جاري إعادة فحص البيانات القديمة...');
+  fetch('https://api.jsonbin.io/v3/b/'+window._BIN_OLD+'/latest',{
+    headers:{'X-Access-Key':window._KEY}
+  })
+  .then(function(r){ return r.ok?r.json():{record:{}}; })
+  .catch(function(){ return {record:{}}; })
+  .then(function(dOld){
+    var oldLogs = (dOld.record||{}).logs || [];
+    if(!oldLogs.length){
+      showToast('ℹ️ لا توجد بيانات قديمة لنقلها');
+      return;
+    }
+    logs = oldLogs;
+    localStorage.setItem('kq_logs', JSON.stringify(logs));
+    renderHome();
+    migrateOldLogsToMonthlyBins(oldLogs, function(allSucceeded){
+      if(allSucceeded){
+        localStorage.setItem('kq_migrated_old_logs','true');
+        showToast('✅ تم نقل البيانات القديمة بنجاح');
+      } else {
+        showToast('⚠️ فشل نقل بعض السجلات — جرّب مرة أخرى');
+      }
+      loadCurrentMonthLogs();
+    });
+  });
+}
+
+// ==================== إعادة محاولة نقل البيانات القديمة يدوياً (نهاية) ====================
 function getMonthKey(dateStr){ return (dateStr||today()).substring(0,7); } // "2026-06"
 
 function getLogsBinMap(){
@@ -1687,9 +1721,14 @@ function initApp(){
             localStorage.setItem('kq_logs', JSON.stringify(logs));
             renderHome();
             // ثم ننقلها للبينات الشهرية تدريجياً
-            migrateOldLogsToMonthlyBins(oldLogs, function(){
-              localStorage.setItem('kq_migrated_old_logs','true');
-              showToast('✅ تم نقل البيانات القديمة بنجاح');
+            migrateOldLogsToMonthlyBins(oldLogs, function(allSucceeded){
+              if(allSucceeded){
+                localStorage.setItem('kq_migrated_old_logs','true');
+                showToast('✅ تم نقل البيانات القديمة بنجاح');
+              } else {
+                // فشل بعض الشهور — لا نعلّم النقل كمكتمل، نحاول تلقائياً المرة الجاية
+                showToast('⚠️ فشل نقل بعض السجلات — سيُعاد المحاولة تلقائياً');
+              }
               loadCurrentMonthLogs();
             });
           } else {
@@ -1714,22 +1753,24 @@ function migrateOldLogsToMonthlyBins(oldLogs, done){
     byMonth[mk].push(l);
   });
   var months = Object.keys(byMonth);
-  if(months.length===0){ done(); return; }
+  if(months.length===0){ done(true); return; }
   var i=0;
+  var allOk = true;
   function next(){
-    if(i>=months.length){ done(); return; }
+    if(i>=months.length){ done(allOk); return; }
     var mk = months[i];
     var monthLogs = byMonth[mk];
-    saveMonthLogsToBin(mk, monthLogs, function(){
+    saveMonthLogsToBin(mk, monthLogs, function(success){
+      if(!success) allOk = false;
       i++;
       // فترة قصيرة بين كل طلب لتجنب أي تضارب شبكة
-      setTimeout(next, 400);
+      setTimeout(next, 500);
     });
   }
   next();
 }
 
-// يحفظ سجلات شهر معيّن في بينه (يخلقه لو ما موجود)
+// يحفظ سجلات شهر معيّن في بينه (يخلقه لو ما موجود) - done(success) يبلّغ بنجاح حقيقي أو فشل
 function saveMonthLogsToBin(monthKey, monthLogs, done){
   var map=getLogsBinMap();
   var binId = map[monthKey];
@@ -1738,15 +1779,15 @@ function saveMonthLogsToBin(monthKey, monthLogs, done){
       method:'PUT',
       headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
       body:JSON.stringify({logs:monthLogs})
-    }).then(function(){ done&&done(); }).catch(function(){ done&&done(); });
+    }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
   } else {
     createMonthBin(monthKey, function(newId){
-      if(!newId){ done&&done(); return; }
+      if(!newId){ done&&done(false); return; }
       fetch('https://api.jsonbin.io/v3/b/'+newId,{
         method:'PUT',
         headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
         body:JSON.stringify({logs:monthLogs})
-      }).then(function(){ done&&done(); }).catch(function(){ done&&done(); });
+      }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
     });
   }
 }
@@ -1761,8 +1802,11 @@ function loadCurrentMonthLogs(){
   var monthsToLoad = [thisMonth, lastMonth].filter(function(mk){ return map[mk]; });
 
   if(!monthsToLoad.length){
-    logs = JSON.parse(localStorage.getItem('kq_logs')||'[]');
+    // ما فيش بينات شهرية بعد (النقل لسا قيد التنفيذ أو فشل) — نستخدم النسخة المحلية الاحتياطية
+    var cached = JSON.parse(localStorage.getItem('kq_logs')||'[]');
+    if(cached.length) logs = cached;
     renderHome(); renderStudentsTable();
+    if(typeof renderAttendanceToday==='function') renderAttendanceToday();
     return;
   }
 
