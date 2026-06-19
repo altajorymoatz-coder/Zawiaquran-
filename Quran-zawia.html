@@ -1524,11 +1524,11 @@ function save(){
   // 2. نضع علامة تغيير
   window._dirty=true;
   if(typeof updateCloudBtn==='function') updateCloudBtn();
-  // 3. debounce - ننتظر 4 ثواني بعد آخر تغيير ثم نرفع مرة واحدة
+  // 3. debounce قصير - ثانية واحدة فقط بعد آخر تغيير ثم نرفع
   clearTimeout(window._saveTimer);
   window._saveTimer=setTimeout(function(){
     uploadToCloud(_now, 0);
-  }, 4000); // 4 ثواني بعد آخر تغيير
+  }, 1000); // ثانية واحدة بعد آخر تغيير
 }
 
 // يرفع الطلاب + المراجعات (صغار) لبيناتهم، وسجلات كل الشهور المتأثرة لبيناتها الشهرية
@@ -2697,6 +2697,15 @@ var _ds=document.getElementById('daily-student'); if(_ds) _ds.addEventListener('
 });
 
 // نبدأ تحميل البيانات من JSONBin
+// حماية: تحذير لو حاول المستخدم يغلق/يحدّث الصفحة وفي رفع للسحابة لم يكتمل بعد
+window.addEventListener('beforeunload', function(e){
+  if(window._dirty){
+    e.preventDefault();
+    e.returnValue = 'البيانات قيد الرفع للسحابة، الرجاء الانتظار قليلاً قبل إغلاق الصفحة';
+    return e.returnValue;
+  }
+});
+
 initApp();
 
 // ==================== زر السحابة JSONBin ====================
