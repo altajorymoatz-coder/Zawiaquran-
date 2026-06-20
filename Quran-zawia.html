@@ -1879,6 +1879,10 @@ function saveMonthLogsToBin(monthKey, monthLogs, done){
 
 // يحمّل سجلات الشهر الحالي + الشهر الماضي (لعرض كافٍ في الصفحة الرئيسية والتقارير)
 function loadCurrentMonthLogs(){
+  // حماية: لو فيه عملية تحميل شغّالة بالفعل، نلغي القديمة لتفادي تعارض الكتابة
+  window._loadLogsToken = (window._loadLogsToken||0) + 1;
+  var myToken = window._loadLogsToken;
+
   var map=getLogsBinMap();
   var thisMonth = getMonthKey(today());
   var d=new Date(); d.setMonth(d.getMonth()-1);
@@ -1888,8 +1892,9 @@ function loadCurrentMonthLogs(){
 
   if(!monthsToLoad.length){
     // ما فيش بينات شهرية بعد (النقل لسا قيد التنفيذ أو فشل) — نستخدم النسخة المحلية الاحتياطية
+    if(myToken !== window._loadLogsToken) return; // عملية أحدث بدأت، نتجاهل هذي
     var cached = JSON.parse(localStorage.getItem('kq_logs')||'[]');
-    if(cached.length) logs = cached;
+    if(cached.length) logs = dedupeLogsById(cached);
     renderHome(); renderStudentsTable();
     if(typeof renderAttendanceToday==='function') renderAttendanceToday();
     return;
@@ -1904,13 +1909,29 @@ function loadCurrentMonthLogs(){
   });
 
   Promise.all(promises).then(function(results){
+    // لو بدأت عملية تحميل أحدث بعدنا، نتجاهل نتيجة هذه القديمة (تمنع التعارض/التذبذب)
+    if(myToken !== window._loadLogsToken) return;
     var merged=[];
     results.forEach(function(arr){ merged=merged.concat(arr); });
-    logs = merged;
+    logs = dedupeLogsById(merged);
     localStorage.setItem('kq_logs', JSON.stringify(logs));
     renderHome(); renderStudentsTable();
     if(typeof renderAttendanceToday==='function') renderAttendanceToday();
   });
+}
+
+// يحذف أي سجل مكرر بنفس الـ id (يحتفظ بأول ظهور فقط) — يحمي من تضاعف الأرقام
+function dedupeLogsById(arr){
+  var seen = {};
+  var result = [];
+  arr.forEach(function(l){
+    var key = l.id!=null ? String(l.id) : (l.studentId+'_'+l.date+'_'+(l.attendance||''));
+    if(!seen[key]){
+      seen[key]=true;
+      result.push(l);
+    }
+  });
+  return result;
 }
 
 // يحمّل سجلات شهر معيّن عند الطلب (مثلاً عند فتح تقرير شهر قديم)
