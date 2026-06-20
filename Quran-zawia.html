@@ -453,8 +453,14 @@ tr:hover td{background:rgba(200,168,75,.05);}
 </div>
 
 <div class="toast" id="toast"></div>
-<button onclick="resetMigrationManually()" title="إعادة محاولة نقل البيانات القديمة"
-  style="position:fixed;bottom:24px;right:16px;z-index:9998;background:rgba(200,168,75,.15);border:1px solid rgba(200,168,75,.4);color:var(--gold);border-radius:50%;width:42px;height:42px;font-size:1rem;cursor:pointer;">🔄</button>
+<!-- زر إعادة نقل البيانات القديمة أُزيل من الواجهة لمنع الضغط بالخطأ بعد اكتمال النقل بنجاح -->
+<!-- الدالة resetMigrationManually() لا تزال موجودة في الكود للاستخدام عبر console عند الحاجة الفعلية فقط -->
+
+<!-- زر سجل الأخطاء التلقائي -->
+<button id="error-log-btn" onclick="showErrorLog()" title="سجل الأخطاء"
+  style="display:none;position:fixed;bottom:78px;left:16px;z-index:9998;background:rgba(180,50,50,.85);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:50%;width:42px;height:42px;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.4);">
+  📋<span class="err-count" style="position:absolute;top:-4px;right:-4px;background:#fff;color:#b00;font-size:.62rem;font-weight:700;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;">0</span>
+</button>
 
 <!-- شاشة التحميل -->
 <div id="loading-overlay" style="display:none!important;">
@@ -466,6 +472,80 @@ tr:hover td{background:rgba(200,168,75,.05);}
 </div>
 
 <script>
+// ==================== نظام تسجيل الأخطاء التلقائي ====================
+// يسجّل كل خطأ (شبكة/JSONBin/JS) في مكان واحد بالتاريخ والوقت، ويعرضه بضغطة واحدة
+function logError(category, detail){
+  try{
+    var list = JSON.parse(localStorage.getItem('kq_error_log')||'[]');
+    var now = new Date();
+    var timeStr = now.toLocaleString('ar-LY',{hour12:false});
+    list.unshift({time:timeStr, category:category, detail:String(detail).substring(0,500)});
+    if(list.length>30) list = list.slice(0,30); // نحتفظ بآخر 30 خطأ فقط
+    localStorage.setItem('kq_error_log', JSON.stringify(list));
+    updateErrorBtn();
+  }catch(e){ /* تجاهل أي خطأ في نظام التسجيل نفسه */ }
+}
+
+function updateErrorBtn(){
+  var btn = document.getElementById('error-log-btn');
+  if(!btn) return;
+  var list = JSON.parse(localStorage.getItem('kq_error_log')||'[]');
+  if(list.length>0){
+    btn.style.display='flex';
+    btn.querySelector('.err-count').textContent = list.length>9 ? '9+' : list.length;
+  } else {
+    btn.style.display='none';
+  }
+}
+
+function showErrorLog(){
+  var list = JSON.parse(localStorage.getItem('kq_error_log')||'[]');
+  if(!list.length){
+    showToast('✅ لا توجد أخطاء مسجّلة');
+    return;
+  }
+  var rows = list.map(function(e){
+    return '<div style="border-bottom:1px solid rgba(200,168,75,.2);padding:10px 0;">'
+      + '<div style="font-size:.75rem;color:#a0c0a8;margin-bottom:3px;">'+e.time+' — '+e.category+'</div>'
+      + '<div style="font-size:.85rem;color:#f0c0c0;word-break:break-word;">'+e.detail+'</div>'
+      + '</div>';
+  }).join('');
+  var modalHtml = '<div id="error-log-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;">'
+    + '<div style="background:var(--green-deep,#0d3320);border:1px solid rgba(200,168,75,.4);border-radius:14px;max-width:92vw;max-height:80vh;overflow-y:auto;padding:18px;width:480px;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+    + '<h3 style="color:var(--gold,#c8a84b);margin:0;font-size:1.05rem;">📋 سجل الأخطاء</h3>'
+    + '<button onclick="closeErrorLog()" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;">×</button>'
+    + '</div>'
+    + rows
+    + '<div style="display:flex;gap:8px;margin-top:14px;">'
+    + '<button onclick="clearErrorLog()" style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(200,80,80,.4);background:rgba(180,50,50,.15);color:#f08080;font-family:inherit;cursor:pointer;">🗑️ مسح السجل</button>'
+    + '<button onclick="closeErrorLog()" style="flex:1;padding:9px;border-radius:8px;border:1px solid rgba(200,168,75,.4);background:rgba(200,168,75,.1);color:var(--gold,#c8a84b);font-family:inherit;cursor:pointer;">إغلاق</button>'
+    + '</div>'
+    + '</div></div>';
+  var existing = document.getElementById('error-log-modal');
+  if(existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+function closeErrorLog(){
+  var m = document.getElementById('error-log-modal');
+  if(m) m.remove();
+}
+function clearErrorLog(){
+  localStorage.removeItem('kq_error_log');
+  updateErrorBtn();
+  closeErrorLog();
+  showToast('✅ تم مسح سجل الأخطاء');
+}
+
+// يمسك أي خطأ JavaScript غير متوقع في أي مكان بالكود تلقائياً
+window.addEventListener('error', function(e){
+  logError('خطأ برمجي', (e.message||'خطأ غير معروف')+' — '+(e.filename?e.filename.split('/').pop():'')+':'+(e.lineno||''));
+  showToast('⚠️ صار خطأ تقني — اضغط 📋 لمعرفة التفاصيل');
+});
+window.addEventListener('unhandledrejection', function(e){
+  logError('خطأ شبكة/وعد', (e.reason&&e.reason.message)||e.reason||'خطأ غير معروف');
+});
+
 // ==================== بيانات القرآن الكريم ====================
 // كل سورة: [الاسم، عدد الآيات، الجزء الذي تبدأ فيه، الحزب الذي تبدأ فيه]
 const SURAHS_DATA = [
@@ -1574,6 +1654,7 @@ function uploadToCloud(ts, attempt){
         var badStatus = !sRes.ok?sRes.status:rRes.status;
         console.error('JSONBin save failed:', badStatus, t);
         window._lastErrorDetail = 'كود '+badStatus+': '+t;
+        logError('فشل الحفظ التلقائي (كود '+badStatus+')', t);
       });
       retryOrGiveUp(ts, attempt);
     }
@@ -1581,6 +1662,7 @@ function uploadToCloud(ts, attempt){
   .catch(function(err){
     console.error('Network error while saving:', err);
     window._lastErrorDetail = 'خطأ شبكة: '+(err.message||err);
+    logError('خطأ شبكة عند الحفظ', err.message||err);
     retryOrGiveUp(ts, attempt);
   });
 }
@@ -1607,10 +1689,12 @@ window._KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
 // كل شهر بياناته في بين خاص بيه: نخزن خريطة { "2026-06": "binId", ... } في localStorage
 // لو الشهر ما عنده بين بعد، أول save() ليه يخلق بين جديد تلقائياً عبر JSONBin API (POST)
 // ==================== إعادة محاولة نقل البيانات القديمة يدوياً ====================
+// محمية: تدمج فقط ولا تستبدل أبداً أي سجلات حالية حتى لو استُخدمت بالخطأ
 function resetMigrationManually(){
-  if(!window.confirm('سيُعاد فحص ونقل السجلات القديمة من جديد. هل تريد الاستمرار؟')) return;
-  localStorage.removeItem('kq_migrated_old_logs');
-  showToast('⏳ جاري إعادة فحص البيانات القديمة...');
+  if(!window.confirm('⚠️ هذه أداة فنية للطوارئ فقط ولا يجب استخدامها في الاستخدام العادي. هل أنت متأكد؟')) return;
+  if(!window.confirm('تأكيد نهائي: سيتم فحص البيانات القديمة ودمجها بأمان مع البيانات الحالية بدون حذف أي شيء جديد. استمرار؟')) return;
+
+  showToast('⏳ جاري الفحص الآمن...');
   fetch('https://api.jsonbin.io/v3/b/'+window._BIN_OLD+'/latest',{
     headers:{'X-Access-Key':window._KEY}
   })
@@ -1622,18 +1706,19 @@ function resetMigrationManually(){
       showToast('ℹ️ لا توجد بيانات قديمة لنقلها');
       return;
     }
-    logs = oldLogs;
+    // دمج آمن: نضيف فقط السجلات القديمة غير الموجودة حالياً (حسب id) - لا نستبدل أي شيء
+    var existingIds = {};
+    logs.forEach(function(l){ existingIds[l.id]=true; });
+    var newOnes = oldLogs.filter(function(l){ return !existingIds[l.id]; });
+    if(!newOnes.length){
+      showToast('✅ كل البيانات القديمة موجودة بالفعل — لا حاجة لأي تعديل');
+      return;
+    }
+    logs = logs.concat(newOnes);
     localStorage.setItem('kq_logs', JSON.stringify(logs));
+    save(); // يرفع النسخة المدمجة (الحالية + القديمة غير الموجودة) لبيناتها الشهرية
     renderHome();
-    migrateOldLogsToMonthlyBins(oldLogs, function(allSucceeded){
-      if(allSucceeded){
-        localStorage.setItem('kq_migrated_old_logs','true');
-        showToast('✅ تم نقل البيانات القديمة بنجاح');
-      } else {
-        showToast('⚠️ فشل نقل بعض السجلات — جرّب مرة أخرى');
-      }
-      loadCurrentMonthLogs();
-    });
+    showToast('✅ تم دمج '+newOnes.length+' سجل قديم بأمان دون حذف أي شيء');
   });
 }
 
@@ -2707,6 +2792,7 @@ window.addEventListener('beforeunload', function(e){
 });
 
 initApp();
+updateErrorBtn(); // يعرض شارة أي أخطاء سابقة محفوظة من جلسات قبل
 
 // ==================== زر السحابة JSONBin ====================
 function updateCloudBtn(){
@@ -2768,12 +2854,14 @@ function syncToCloud(){
         var shortMsg='';
         try{ var pj=JSON.parse(errText); shortMsg=pj.message||errText; }catch(e){ shortMsg=errText; }
         showToast('❌ خطأ '+badStatus+': '+shortMsg.substring(0,60));
+        logError('فشل المزامنة اليدوية (كود '+badStatus+')', shortMsg);
       });
       if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
     }
   }).catch(function(err){
     console.error('Network error:', err);
     showToast('❌ تحقق من الاتصال: '+(err.message||'خطأ شبكة'));
+    logError('خطأ شبكة عند المزامنة اليدوية', err.message||err);
     if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
   });
 }
