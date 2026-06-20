@@ -1688,6 +1688,7 @@ function retryOrGiveUp(ts, attempt){
 window._BIN_STUDENTS = '6a33d338da38895dfed694fb';
 window._BIN_REVIEWS  = '6a33d361da38895dfed695d3';
 window._BIN_OLD      = '6a2415b2f5f4af5e29c244ff'; // البين الكبير القديم (للنقل التلقائي مرة واحدة)
+window._BIN_MONTHS   = '6a36beaaf5f4af5e2914ebda'; // بين توجيه الأشهر المركزي - مشترك بين كل الأجهزة
 window._KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
 
 // كل شهر بياناته في بين خاص بيه: نخزن خريطة { "2026-06": "binId", ... } في localStorage
@@ -1729,33 +1730,76 @@ function resetMigrationManually(){
 // ==================== إعادة محاولة نقل البيانات القديمة يدوياً (نهاية) ====================
 function getMonthKey(dateStr){ return (dateStr||today()).substring(0,7); } // "2026-06"
 
+// ==================== خريطة الأشهر المركزية (مشتركة بين كل الأجهزة) ====================
+// نحتفظ بنسخة محلية مؤقتة (cache) لتسريع الوصول، لكن المصدر الحقيقي دائماً هو السحابة
+window._monthsMapCache = null;
+
+function fetchMonthsMapFromCloud(callback){
+  fetch('https://api.jsonbin.io/v3/b/'+window._BIN_MONTHS+'/latest',{
+    headers:{'X-Access-Key':window._KEY}
+  })
+  .then(function(r){ return r.ok?r.json():{record:{months:{}}}; })
+  .catch(function(){ return {record:{months:{}}}; })
+  .then(function(data){
+    var map = (data.record && data.record.months) || {};
+    window._monthsMapCache = map;
+    localStorage.setItem('kq_logs_bin_map', JSON.stringify(map)); // نسخة احتياطية محلية فقط
+    callback(map);
+  });
+}
+
+function saveMonthsMapToCloud(map, callback){
+  window._monthsMapCache = map;
+  localStorage.setItem('kq_logs_bin_map', JSON.stringify(map));
+  fetch('https://api.jsonbin.io/v3/b/'+window._BIN_MONTHS,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+    body:JSON.stringify({months:map})
+  })
+  .then(function(r){ callback&&callback(r.ok); })
+  .catch(function(){ callback&&callback(false); });
+}
+
+// نسخة متزامنة سريعة من الكاش (تُستخدم بعد أول تحميل من السحابة في initApp)
 function getLogsBinMap(){
+  if(window._monthsMapCache) return window._monthsMapCache;
   try{ return JSON.parse(localStorage.getItem('kq_logs_bin_map')||'{}'); }catch(e){ return {}; }
 }
 function saveLogsBinMap(map){
+  window._monthsMapCache = map;
   localStorage.setItem('kq_logs_bin_map', JSON.stringify(map));
 }
 
-// ينشئ بين جديد فاضي على JSONBin ويرجع الـ ID عبر callback
+// ينشئ بين جديد فاضي على JSONBin لشهر معيّن، فقط بعد التأكد (من السحابة) إنه غير موجود فعلاً
+// لمنع تكرار إنشاء بينات لنفس الشهر من أجهزة مختلفة بنفس الوقت
 function createMonthBin(monthKey, callback){
-  fetch('https://api.jsonbin.io/v3/b',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
-    body:JSON.stringify({logs:[]})
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    var newId = data.metadata && data.metadata.id;
-    if(newId){
-      var map=getLogsBinMap();
-      map[monthKey]=newId;
-      saveLogsBinMap(map);
-      callback(newId);
-    } else {
-      callback(null);
+  // أولاً: نتأكد من أحدث نسخة من السحابة - ربما جهاز آخر أنشأ بين لهذا الشهر للتو
+  fetchMonthsMapFromCloud(function(freshMap){
+    if(freshMap[monthKey]){
+      // البين موجود بالفعل (أنشأه جهاز آخر) - نستخدمه بدل إنشاء بين جديد
+      callback(freshMap[monthKey]);
+      return;
     }
-  })
-  .catch(function(){ callback(null); });
+    // فعلاً غير موجود - ننشئ بين جديد
+    fetch('https://api.jsonbin.io/v3/b',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+      body:JSON.stringify({logs:[]})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var newId = data.metadata && data.metadata.id;
+      if(newId){
+        freshMap[monthKey]=newId;
+        saveMonthsMapToCloud(freshMap, function(){
+          callback(newId);
+        });
+      } else {
+        callback(null);
+      }
+    })
+    .catch(function(){ callback(null); });
+  });
 }
 
 function initApp(){
@@ -1770,7 +1814,10 @@ function initApp(){
   renderHome(); renderStudentsTable(); fillAllStudentSels();
   if(typeof updateCloudBtn==='function') updateCloudBtn();
 
-  // ثانياً: جلب بيانات الطلاب من السحابة (طلب واحد فقط أولاً)
+  // ثانياً: جلب خريطة الأشهر المركزية من السحابة فوراً (أساسية لكل عمليات السجلات)
+  fetchMonthsMapFromCloud(function(){
+
+  // ثالثاً: جلب بيانات الطلاب من السحابة (طلب واحد فقط أولاً)
   fetch('https://api.jsonbin.io/v3/b/'+window._BIN_STUDENTS+'/latest',{
     headers:{'X-Access-Key':window._KEY}
   })
@@ -1846,6 +1893,8 @@ function initApp(){
 
     showToast('☁️ تم الاتصال بـ JSONBin');
   });
+
+  }); // إغلاق fetchMonthsMapFromCloud
 }
 
 // نوزّع كل سجلات البين القديم على بينات شهرية حسب تاريخ كل سجل
