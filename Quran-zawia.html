@@ -1777,14 +1777,29 @@ function initApp(){
     var cloudNextId   = (dStudents.record||{}).nextId   || nextId;
     var cloudTime     = (dStudents.record||{}).lastSaved|| 0;
     var lT=parseInt(localStorage.getItem('kq_lastSaved')||'0');
+    var localStudents = students; // النسخة المحلية الحالية (محمّلة في بداية الدالة)
 
-    if(cloudStudents.length && cloudTime >= lT){
-      students=cloudStudents;
-      nextId=cloudNextId;
+    if(cloudStudents.length){
+      // دمج بالـ id: لكل طالب نأخذ النسخة الأحدث (محلية أو سحابية) بدل استبعاد طرف كامل
+      var merged = {};
+      cloudStudents.forEach(function(s){ merged[s.id] = s; });
+      // لو الجهاز المحلي أحدث من السحابة، نُبقي تعديلاته المحلية فوق نسخة السحابة لنفس الطالب
+      if(lT > cloudTime){
+        localStudents.forEach(function(s){ merged[s.id] = s; });
+      }
+      students = Object.keys(merged).map(function(k){ return merged[k]; })
+        .sort(function(a,b){ return a.id-b.id; });
+      nextId = Math.max(cloudNextId, nextId);
       localStorage.setItem('kq_students',JSON.stringify(students));
       localStorage.setItem('kq_nextId',String(nextId));
-      localStorage.setItem('kq_lastSaved',String(cloudTime));
+      // لو محلياً أحدث، نعلّم إنها لسا تحتاج رفع (دمج صعد للسحابة)
+      if(lT > cloudTime){
+        window._dirty = true;
+      } else {
+        localStorage.setItem('kq_lastSaved',String(cloudTime));
+      }
       renderHome(); renderStudentsTable(); fillAllStudentSels();
+      if(window._dirty) save(); // يرفع النسخة المدمجة فوراً لتصل لباقي الأجهزة
     }
 
     // ثالثاً: بعد الطلاب نجيب السجلات (بتأخير عشان ما يتعارضوا)
@@ -1911,9 +1926,12 @@ function loadCurrentMonthLogs(){
   Promise.all(promises).then(function(results){
     // لو بدأت عملية تحميل أحدث بعدنا، نتجاهل نتيجة هذه القديمة (تمنع التعارض/التذبذب)
     if(myToken !== window._loadLogsToken) return;
-    var merged=[];
-    results.forEach(function(arr){ merged=merged.concat(arr); });
-    logs = dedupeLogsById(merged);
+    var cloudMerged=[];
+    results.forEach(function(arr){ cloudMerged=cloudMerged.concat(arr); });
+
+    // ندمج مع السجلات المحلية الحالية (قد تحتوي تسجيلات جديدة لسا ما رفعتش للسحابة)
+    var localCached = JSON.parse(localStorage.getItem('kq_logs')||'[]');
+    logs = dedupeLogsById(cloudMerged.concat(localCached));
     localStorage.setItem('kq_logs', JSON.stringify(logs));
     renderHome(); renderStudentsTable();
     if(typeof renderAttendanceToday==='function') renderAttendanceToday();
