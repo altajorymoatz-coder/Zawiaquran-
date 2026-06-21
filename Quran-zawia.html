@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>زاوية الشيخ عبد السلام النفاتي</title>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+
+<!-- PWA: تثبيت كتطبيق على الشاشة الرئيسية -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0d3320">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="زاوية النفاتي">
+<meta name="mobile-web-app-capable" content="yes">
+
 <!-- JSONBin SDK -->
 
 
@@ -455,6 +465,15 @@ tr:hover td{background:rgba(200,168,75,.05);}
 <div class="toast" id="toast"></div>
 <!-- زر إعادة نقل البيانات القديمة أُزيل من الواجهة لمنع الضغط بالخطأ بعد اكتمال النقل بنجاح -->
 <!-- الدالة resetMigrationManually() لا تزال موجودة في الكود للاستخدام عبر console عند الحاجة الفعلية فقط -->
+
+<!-- بانر تثبيت التطبيق على الشاشة الرئيسية -->
+<div id="install-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:10000;background:linear-gradient(135deg,#1a5c38,#0d3320);border-bottom:2px solid var(--gold,#c8a84b);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 3px 14px rgba(0,0,0,.4);">
+  <span style="color:var(--cream,#f5f0e8);font-size:.82rem;">📲 ثبّت المنظومة كتطبيق على هاتفك</span>
+  <div style="display:flex;gap:6px;flex-shrink:0;">
+    <button onclick="installPWA()" style="background:var(--gold,#c8a84b);color:#0d3320;border:none;border-radius:8px;padding:6px 14px;font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer;">تثبيت</button>
+    <button onclick="dismissInstallBanner()" style="background:none;border:1px solid rgba(255,255,255,.3);color:var(--cream,#f5f0e8);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:.78rem;cursor:pointer;">إغلاق</button>
+  </div>
+</div>
 
 <!-- زر السحابة - يبيّن حالة الحفظ في السحابة -->
 <button id="cloud-save-btn" onclick="syncToCloud()" title="حالة الحفظ في السحابة — اضغط للمزامنة اليدوية"
@@ -2913,6 +2932,49 @@ window.addEventListener('beforeunload', function(e){
 
 initApp();
 updateErrorBtn(); // يعرض شارة أي أخطاء سابقة محفوظة من جلسات قبل
+
+// ==================== تسجيل Service Worker لخصائص PWA ====================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(function() { console.log('Service Worker registered'); })
+      .catch(function(err) { console.log('Service Worker registration failed:', err); });
+  });
+}
+
+// ==================== بانر تثبيت التطبيق ====================
+var _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  // لا نعرض البانر لو المستخدم أغلقه قبل وحدد عدم التذكير اليوم
+  var dismissedAt = localStorage.getItem('kq_install_dismissed');
+  var now = Date.now();
+  if(!dismissedAt || (now - parseInt(dismissedAt)) > 86400000){ // يظهر مجدداً بعد يوم لو أُغلق
+    var banner = document.getElementById('install-banner');
+    if(banner) banner.style.display = 'flex';
+  }
+});
+function installPWA(){
+  if(_deferredInstallPrompt){
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.then(function(){
+      _deferredInstallPrompt = null;
+      dismissInstallBanner();
+    });
+  } else {
+    showToast('📲 استخدم خيار "إضافة إلى الشاشة الرئيسية" من قائمة المتصفح');
+  }
+}
+function dismissInstallBanner(){
+  var banner = document.getElementById('install-banner');
+  if(banner) banner.style.display = 'none';
+  localStorage.setItem('kq_install_dismissed', String(Date.now()));
+}
+// لو التطبيق فُتح بالفعل كتطبيق مثبّت (standalone)، لا نعرض البانر أبداً
+if(window.matchMedia('(display-mode: standalone)').matches){
+  localStorage.setItem('kq_install_dismissed', String(Date.now()));
+}
 
 // ==================== زر السحابة JSONBin ====================
 function updateCloudBtn(){
