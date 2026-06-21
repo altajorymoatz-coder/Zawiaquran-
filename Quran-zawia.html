@@ -1735,6 +1735,7 @@ function getMonthKey(dateStr){ return (dateStr||today()).substring(0,7); } // "2
 window._monthsMapCache = null;
 
 function fetchMonthsMapFromCloud(callback){
+  window._monthsMapReady = false;
   fetch('https://api.jsonbin.io/v3/b/'+window._BIN_MONTHS+'/latest',{
     headers:{'X-Access-Key':window._KEY}
   })
@@ -1743,6 +1744,7 @@ function fetchMonthsMapFromCloud(callback){
   .then(function(data){
     var map = (data.record && data.record.months) || {};
     window._monthsMapCache = map;
+    window._monthsMapReady = true;
     localStorage.setItem('kq_logs_bin_map', JSON.stringify(map)); // نسخة احتياطية محلية فقط
     callback(map);
   });
@@ -1770,17 +1772,15 @@ function saveLogsBinMap(map){
   localStorage.setItem('kq_logs_bin_map', JSON.stringify(map));
 }
 
-// ينشئ بين جديد فاضي على JSONBin لشهر معيّن، فقط بعد التأكد (من السحابة) إنه غير موجود فعلاً
-// لمنع تكرار إنشاء بينات لنفس الشهر من أجهزة مختلفة بنفس الوقت
-function createMonthBin(monthKey, callback){
-  // أولاً: نتأكد من أحدث نسخة من السحابة - ربما جهاز آخر أنشأ بين لهذا الشهر للتو
-  fetchMonthsMapFromCloud(function(freshMap){
-    if(freshMap[monthKey]){
+// ينشئ بين جديد فاضي على JSONBin لشهر معيّن. freshMap يجب أن تكون أحدث نسخة من السحابة
+// (يستدعيها المستدعي بعد fetchMonthsMapFromCloud مباشرة لمنع أي نافذة سباق)
+function createMonthBin(monthKey, callback, freshMap){
+  function proceedWith(map){
+    if(map[monthKey]){
       // البين موجود بالفعل (أنشأه جهاز آخر) - نستخدمه بدل إنشاء بين جديد
-      callback(freshMap[monthKey]);
+      callback(map[monthKey]);
       return;
     }
-    // فعلاً غير موجود - ننشئ بين جديد
     fetch('https://api.jsonbin.io/v3/b',{
       method:'POST',
       headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
@@ -1790,8 +1790,8 @@ function createMonthBin(monthKey, callback){
     .then(function(data){
       var newId = data.metadata && data.metadata.id;
       if(newId){
-        freshMap[monthKey]=newId;
-        saveMonthsMapToCloud(freshMap, function(){
+        map[monthKey]=newId;
+        saveMonthsMapToCloud(map, function(){
           callback(newId);
         });
       } else {
@@ -1799,7 +1799,14 @@ function createMonthBin(monthKey, callback){
       }
     })
     .catch(function(){ callback(null); });
-  });
+  }
+
+  if(freshMap){
+    proceedWith(freshMap);
+  } else {
+    // لو استُدعيت مباشرة بدون خريطة جاهزة، نجلبها أولاً
+    fetchMonthsMapFromCloud(proceedWith);
+  }
 }
 
 function initApp(){
@@ -1925,24 +1932,27 @@ function migrateOldLogsToMonthlyBins(oldLogs, done){
 
 // يحفظ سجلات شهر معيّن في بينه (يخلقه لو ما موجود) - done(success) يبلّغ بنجاح حقيقي أو فشل
 function saveMonthLogsToBin(monthKey, monthLogs, done){
-  var map=getLogsBinMap();
-  var binId = map[monthKey];
-  if(binId){
-    fetch('https://api.jsonbin.io/v3/b/'+binId,{
-      method:'PUT',
-      headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
-      body:JSON.stringify({logs:monthLogs})
-    }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
-  } else {
-    createMonthBin(monthKey, function(newId){
-      if(!newId){ done&&done(false); return; }
-      fetch('https://api.jsonbin.io/v3/b/'+newId,{
+  // دائماً نتأكد من أحدث نسخة من خريطة الأشهر على السحابة أولاً (مصدر الحقيقة الوحيد)
+  // هذا يمنع نهائياً أي احتمال لإنشاء بين مكرر بسبب كاش محلي قديم أو غير مُحمَّل بعد
+  fetchMonthsMapFromCloud(function(freshMap){
+    var binId = freshMap[monthKey];
+    if(binId){
+      fetch('https://api.jsonbin.io/v3/b/'+binId,{
         method:'PUT',
         headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
         body:JSON.stringify({logs:monthLogs})
       }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
-    });
-  }
+    } else {
+      createMonthBin(monthKey, function(newId){
+        if(!newId){ done&&done(false); return; }
+        fetch('https://api.jsonbin.io/v3/b/'+newId,{
+          method:'PUT',
+          headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
+          body:JSON.stringify({logs:monthLogs})
+        }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
+      }, freshMap);
+    }
+  });
 }
 
 // يحمّل سجلات الشهر الحالي + الشهر الماضي (لعرض كافٍ في الصفحة الرئيسية والتقارير)
