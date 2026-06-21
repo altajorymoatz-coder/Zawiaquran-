@@ -1631,7 +1631,7 @@ function uploadToCloud(ts, attempt){
     body:JSON.stringify({reviews:reviews,lastSaved:ts})
   });
 
-  // نوزّع logs الحالية على الأشهر الموجودة فيها ونرفع كل شهر متأثر لبينه
+  // نوزّع logs الحالية على الأشهر الموجودة فيها
   var byMonth = {};
   logs.forEach(function(l){
     var mk = getMonthKey(l.date);
@@ -1639,13 +1639,19 @@ function uploadToCloud(ts, attempt){
     byMonth[mk].push(l);
   });
   var monthKeys = Object.keys(byMonth);
-  var pLogs = monthKeys.map(function(mk){
-    return new Promise(function(resolve){
-      saveMonthLogsToBin(mk, byMonth[mk], resolve);
-    });
+
+  // نجلب خريطة الأشهر مرة واحدة فقط (لا طلب منفصل لكل شهر) ثم نرفع كل الأشهر بالتتابع
+  var pLogsAll = fetchMonthsMapFromCloudPromise().then(function(freshMap){
+    return monthKeys.reduce(function(chain, mk){
+      return chain.then(function(){
+        return new Promise(function(resolve){
+          saveMonthLogsToBin(mk, byMonth[mk], resolve, freshMap);
+        });
+      });
+    }, Promise.resolve());
   });
 
-  Promise.all([pStudents, pReviews].concat(pLogs))
+  Promise.all([pStudents, pReviews, pLogsAll])
   .then(function(results){
     var sRes = results[0];
     var rRes = results[1];
@@ -1747,6 +1753,12 @@ function fetchMonthsMapFromCloud(callback){
     window._monthsMapReady = true;
     localStorage.setItem('kq_logs_bin_map', JSON.stringify(map)); // نسخة احتياطية محلية فقط
     callback(map);
+  });
+}
+// نسخة Promise من نفس الدالة - لاستخدامها في سلاسل .then() بدون callback متداخلة
+function fetchMonthsMapFromCloudPromise(){
+  return new Promise(function(resolve){
+    fetchMonthsMapFromCloud(resolve);
   });
 }
 
@@ -1931,10 +1943,9 @@ function migrateOldLogsToMonthlyBins(oldLogs, done){
 }
 
 // يحفظ سجلات شهر معيّن في بينه (يخلقه لو ما موجود) - done(success) يبلّغ بنجاح حقيقي أو فشل
-function saveMonthLogsToBin(monthKey, monthLogs, done){
-  // دائماً نتأكد من أحدث نسخة من خريطة الأشهر على السحابة أولاً (مصدر الحقيقة الوحيد)
-  // هذا يمنع نهائياً أي احتمال لإنشاء بين مكرر بسبب كاش محلي قديم أو غير مُحمَّل بعد
-  fetchMonthsMapFromCloud(function(freshMap){
+// preFetchedMap اختياري: لو مُرّر، نستخدمه مباشرة بدل إعادة الجلب من السحابة (يمنع تكرار الطلبات)
+function saveMonthLogsToBin(monthKey, monthLogs, done, preFetchedMap){
+  function proceedWith(freshMap){
     var binId = freshMap[monthKey];
     if(binId){
       fetch('https://api.jsonbin.io/v3/b/'+binId,{
@@ -1952,7 +1963,14 @@ function saveMonthLogsToBin(monthKey, monthLogs, done){
         }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
       }, freshMap);
     }
-  });
+  }
+
+  if(preFetchedMap){
+    proceedWith(preFetchedMap);
+  } else {
+    // دائماً نتأكد من أحدث نسخة من خريطة الأشهر على السحابة أولاً (مصدر الحقيقة الوحيد)
+    fetchMonthsMapFromCloud(proceedWith);
+  }
 }
 
 // يحمّل سجلات الشهر الحالي + الشهر الماضي (لعرض كافٍ في الصفحة الرئيسية والتقارير)
@@ -2932,13 +2950,19 @@ function syncToCloud(){
     if(!byMonth[mk]) byMonth[mk]=[];
     byMonth[mk].push(l);
   });
-  var pLogs = Object.keys(byMonth).map(function(mk){
-    return new Promise(function(resolve){
-      saveMonthLogsToBin(mk, byMonth[mk], resolve);
-    });
+  var monthKeysSync = Object.keys(byMonth);
+  // نجلب خريطة الأشهر مرة واحدة فقط، ثم نرفع كل الأشهر بالتتابع (لا بالتوازي) لتفادي ضغط الشبكة
+  var pLogs = fetchMonthsMapFromCloudPromise().then(function(freshMap){
+    return monthKeysSync.reduce(function(chain, mk){
+      return chain.then(function(){
+        return new Promise(function(resolve){
+          saveMonthLogsToBin(mk, byMonth[mk], resolve, freshMap);
+        });
+      });
+    }, Promise.resolve());
   });
 
-  Promise.all([pStudents, pReviews].concat(pLogs)).then(function(results){
+  Promise.all([pStudents, pReviews, pLogs]).then(function(results){
     var sRes = results[0];
     var rRes = results[1];
     if(sRes.ok && rRes.ok){
