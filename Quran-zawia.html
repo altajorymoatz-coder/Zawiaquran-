@@ -485,6 +485,10 @@ tr:hover td{background:rgba(200,168,75,.05);}
   📋<span class="err-count" style="position:absolute;top:-4px;right:-4px;background:#fff;color:#b00;font-size:.62rem;font-weight:700;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;">0</span>
 </button>
 
+<!-- زر تنظيف السجلات المكررة -->
+<button onclick="cleanupDuplicateLogsNow()" title="تنظيف السجلات المكررة"
+  style="position:fixed;bottom:132px;left:16px;z-index:9998;background:rgba(100,149,237,.85);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:50%;width:42px;height:42px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.4);">🧹</button>
+
 <!-- شاشة التحميل -->
 <div id="loading-overlay" style="display:none!important;">
   <div style="font-size:3rem;">📖</div>
@@ -1720,6 +1724,28 @@ window._KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
 // لو الشهر ما عنده بين بعد، أول save() ليه يخلق بين جديد تلقائياً عبر JSONBin API (POST)
 // ==================== إعادة محاولة نقل البيانات القديمة يدوياً ====================
 // محمية: تدمج فقط ولا تستبدل أبداً أي سجلات حالية حتى لو استُخدمت بالخطأ
+// ==================== تنظيف فوري للسجلات المكررة الحالية ====================
+// تستخدم مرة واحدة لإزالة أي تكرار تراكم في الأشهر الحالية/الماضية بسبب الأخطاء السابقة
+function cleanupDuplicateLogsNow(){
+  if(!window.confirm('سيتم فحص السجلات الحالية وحذف أي تكرار (سجل واحد فقط لكل طالب في كل يوم، مع الاحتفاظ بالأحدث). متابعة؟')) return;
+
+  var before = logs.length;
+  logs = dedupeLogsById(logs);
+  var after = logs.length;
+  var removed = before - after;
+
+  if(removed === 0){
+    showToast('✅ لا يوجد أي تكرار - البيانات سليمة');
+    return;
+  }
+
+  localStorage.setItem('kq_logs', JSON.stringify(logs));
+  renderHome(); renderStudentsTable();
+  if(typeof renderAttendanceToday==='function') renderAttendanceToday();
+  showToast('🧹 تم حذف '+removed+' سجل مكرر - يتم الرفع للسحابة...');
+  save(); // يرفع النسخة النظيفة فوراً لكل الأشهر المتأثرة
+}
+
 function resetMigrationManually(){
   if(!window.confirm('⚠️ هذه أداة فنية للطوارئ فقط ولا يجب استخدامها في الاستخدام العادي. هل أنت متأكد؟')) return;
   if(!window.confirm('تأكيد نهائي: سيتم فحص البيانات القديمة ودمجها بأمان مع البيانات الحالية بدون حذف أي شيء جديد. استمرار؟')) return;
@@ -2039,17 +2065,24 @@ function loadCurrentMonthLogs(){
 }
 
 // يحذف أي سجل مكرر بنفس الـ id (يحتفظ بأول ظهور فقط) — يحمي من تضاعف الأرقام
+// يحذف أي سجل مكرر - القاعدة الحقيقية: سجل واحد فقط لكل (طالب + تاريخ)
+// لأن نفس الطالب لا يمكن أن يكون له أكثر من حالة حضور واحدة في نفس اليوم
+// عند وجود تكرار، نحتفظ بالأحدث (id الأكبر = الأحدث زمنياً عادة لأن id = Date.now())
 function dedupeLogsById(arr){
-  var seen = {};
-  var result = [];
+  var byKey = {};
   arr.forEach(function(l){
-    var key = l.id!=null ? String(l.id) : (l.studentId+'_'+l.date+'_'+(l.attendance||''));
-    if(!seen[key]){
-      seen[key]=true;
-      result.push(l);
+    var key = l.studentId + '_' + l.date;
+    var existing = byKey[key];
+    if(!existing){
+      byKey[key] = l;
+    } else {
+      // نحتفظ بالسجل الأحدث (id أكبر = أحدث، أو لو متساوي نحتفظ بالموجود)
+      var existingId = parseFloat(existing.id) || 0;
+      var newId = parseFloat(l.id) || 0;
+      if(newId > existingId) byKey[key] = l;
     }
   });
-  return result;
+  return Object.keys(byKey).map(function(k){ return byKey[k]; });
 }
 
 // يحمّل سجلات شهر معيّن عند الطلب (مثلاً عند فتح تقرير شهر قديم)
@@ -2495,9 +2528,10 @@ function addDailyLog(){
   const st=students.find(x=>x.id===sid);
   if(!st){ showToast('❌ الطالب غير موجود'); return; }
 
-  // حذف سجل الغياب التلقائي فوراً عند أي تسجيل
-  const autoIdx=logs.findIndex(function(l){ return l.studentId===sid&&l.date===date&&l.autoMarked; });
-  if(autoIdx>-1) logs.splice(autoIdx,1);
+  // حذف أي سجل سابق لنفس الطالب في نفس اليوم (تلقائي أو حقيقي) قبل إضافة سجل جديد
+  // هذا يمنع تكرار السجلات نهائياً - سجل واحد فقط لكل طالب في كل يوم
+  const prevIdx=logs.findIndex(function(l){ return l.studentId===sid&&l.date===date; });
+  if(prevIdx>-1) logs.splice(prevIdx,1);
 
   // حضر ولم يقرأ أو غائب
   if(currentAttendance==='heard'){
@@ -2558,11 +2592,7 @@ function addDailyLog(){
     showToast('⚠️ أدخل بيانات القراءة'); return;
   }
 
-  const dup=logs.find(l=>l.studentId===sid&&l.date===date&&l.attendance!=='unrecorded');
-  if(dup&&!window.confirm('يوجد سجل لهذا الطالب في نفس التاريخ، إضافة سجل إضافي؟')) return;
-
-  const unrecIdx=logs.findIndex(l=>l.studentId===sid&&l.date===date&&l.attendance==='unrecorded');
-  if(unrecIdx>-1) logs.splice(unrecIdx,1);
+  // ملاحظة: حذف أي سجل سابق لهذا الطالب في هذا اليوم تم بالفعل في بداية الدالة (يمنع التكرار نهائياً)
 
   // نص الثمن
   const athText=athFromVal?ATHMAN.find(a=>a[0]===surahN&&a[1]===athFromVal)?.[3]||'':'';
