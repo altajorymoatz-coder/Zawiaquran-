@@ -2013,15 +2013,41 @@ function saveMonthLogsToBin(monthKey, monthLogs, done, preFetchedMap){
         method:'PUT',
         headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
         body:JSON.stringify({logs:monthLogs})
-      }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
+      }).then(function(r){
+        if(r.ok){ done&&done(true); return; }
+        r.text().then(function(t){
+          console.error('فشل رفع شهر '+monthKey+':', r.status, t);
+          logError('فشل رفع شهر '+monthKey+' (كود '+r.status+')', t);
+          done&&done(false);
+        }).catch(function(){ done&&done(false); });
+      }).catch(function(err){
+        console.error('خطأ شبكة عند رفع شهر '+monthKey+':', err);
+        logError('خطأ شبكة عند رفع شهر '+monthKey, err.message||err);
+        done&&done(false);
+      });
     } else {
       createMonthBin(monthKey, function(newId){
-        if(!newId){ done&&done(false); return; }
+        if(!newId){
+          logError('فشل إنشاء بين لشهر '+monthKey, 'تعذّر إنشاء بين جديد على JSONBin');
+          done&&done(false);
+          return;
+        }
         fetch('https://api.jsonbin.io/v3/b/'+newId,{
           method:'PUT',
           headers:{'Content-Type':'application/json','X-Access-Key':window._KEY},
           body:JSON.stringify({logs:monthLogs})
-        }).then(function(r){ done&&done(r.ok); }).catch(function(){ done&&done(false); });
+        }).then(function(r){
+          if(r.ok){ done&&done(true); return; }
+          r.text().then(function(t){
+            console.error('فشل رفع شهر '+monthKey+' (بين جديد):', r.status, t);
+            logError('فشل رفع شهر '+monthKey+' (كود '+r.status+')', t);
+            done&&done(false);
+          }).catch(function(){ done&&done(false); });
+        }).catch(function(err){
+          console.error('خطأ شبكة عند رفع شهر '+monthKey+' (بين جديد):', err);
+          logError('خطأ شبكة عند رفع شهر '+monthKey, err.message||err);
+          done&&done(false);
+        });
       }, freshMap);
     }
   }
