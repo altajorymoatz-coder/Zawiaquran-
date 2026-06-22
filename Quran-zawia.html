@@ -1664,31 +1664,47 @@ function uploadToCloud(ts, attempt){
   var monthKeys = Object.keys(byMonth);
 
   // نجلب خريطة الأشهر مرة واحدة فقط (لا طلب منفصل لكل شهر) ثم نرفع كل الأشهر بالتتابع
+  // النتيجة النهائية = true فقط لو نجحت كل الأشهر، وليس فقط آخرها
   var pLogsAll = fetchMonthsMapFromCloudPromise().then(function(freshMap){
+    var allMonthsOk = true;
     return monthKeys.reduce(function(chain, mk){
       return chain.then(function(){
         return new Promise(function(resolve){
-          saveMonthLogsToBin(mk, byMonth[mk], resolve, freshMap);
+          saveMonthLogsToBin(mk, byMonth[mk], function(success){
+            if(!success) allMonthsOk = false;
+            resolve();
+          }, freshMap);
         });
       });
-    }, Promise.resolve());
+    }, Promise.resolve()).then(function(){
+      return allMonthsOk;
+    });
   });
 
   Promise.all([pStudents, pReviews, pLogsAll])
   .then(function(results){
     var sRes = results[0];
     var rRes = results[1];
-    if(sRes.ok && rRes.ok){
+    var logsAllOk = results[2]; // true فقط لو كل الأشهر نجحت في الرفع
+
+    if(sRes.ok && rRes.ok && logsAllOk){
       window._dirty=false;
       localStorage.setItem('kq_lastSaved',String(ts));
       if(typeof updateCloudBtn==='function') updateCloudBtn();
     } else {
-      Promise.resolve(!sRes.ok?sRes.text():rRes.text()).then(function(t){
-        var badStatus = !sRes.ok?sRes.status:rRes.status;
-        console.error('JSONBin save failed:', badStatus, t);
-        window._lastErrorDetail = 'كود '+badStatus+': '+t;
-        logError('فشل الحفظ التلقائي (كود '+badStatus+')', t);
-      });
+      if(!sRes.ok || !rRes.ok){
+        Promise.resolve(!sRes.ok?sRes.text():rRes.text()).then(function(t){
+          var badStatus = !sRes.ok?sRes.status:rRes.status;
+          console.error('JSONBin save failed:', badStatus, t);
+          window._lastErrorDetail = 'كود '+badStatus+': '+t;
+          logError('فشل الحفظ التلقائي (كود '+badStatus+')', t);
+        });
+      }
+      if(!logsAllOk){
+        console.error('JSONBin save failed: logs upload failed for one or more months');
+        window._lastErrorDetail = 'فشل رفع السجلات اليومية لأحد الأشهر';
+        logError('فشل رفع السجلات اليومية', 'فشل رفع أحد الأشهر للسحابة');
+      }
       retryOrGiveUp(ts, attempt);
     }
   })
@@ -3044,20 +3060,28 @@ function syncToCloud(){
   });
   var monthKeysSync = Object.keys(byMonth);
   // نجلب خريطة الأشهر مرة واحدة فقط، ثم نرفع كل الأشهر بالتتابع (لا بالتوازي) لتفادي ضغط الشبكة
+  // النتيجة النهائية = true فقط لو نجحت كل الأشهر
   var pLogs = fetchMonthsMapFromCloudPromise().then(function(freshMap){
+    var allMonthsOkSync = true;
     return monthKeysSync.reduce(function(chain, mk){
       return chain.then(function(){
         return new Promise(function(resolve){
-          saveMonthLogsToBin(mk, byMonth[mk], resolve, freshMap);
+          saveMonthLogsToBin(mk, byMonth[mk], function(success){
+            if(!success) allMonthsOkSync = false;
+            resolve();
+          }, freshMap);
         });
       });
-    }, Promise.resolve());
+    }, Promise.resolve()).then(function(){
+      return allMonthsOkSync;
+    });
   });
 
   Promise.all([pStudents, pReviews, pLogs]).then(function(results){
     var sRes = results[0];
     var rRes = results[1];
-    if(sRes.ok && rRes.ok){
+    var logsOkSync = results[2];
+    if(sRes.ok && rRes.ok && logsOkSync){
       window._dirty=false;
       localStorage.setItem('kq_students',JSON.stringify(students));
       localStorage.setItem('kq_logs',JSON.stringify(logs));
@@ -3066,14 +3090,19 @@ function syncToCloud(){
       localStorage.setItem('kq_lastSaved',String(_now2));
       updateCloudBtn(); showToast('✅ تم الحفظ في السحابة');
     } else {
-      Promise.resolve(!sRes.ok?sRes.text():rRes.text()).then(function(errText){
-        var badStatus = !sRes.ok?sRes.status:rRes.status;
-        console.error('JSONBin error:', badStatus, errText);
-        var shortMsg='';
-        try{ var pj=JSON.parse(errText); shortMsg=pj.message||errText; }catch(e){ shortMsg=errText; }
-        showToast('❌ خطأ '+badStatus+': '+shortMsg.substring(0,60));
-        logError('فشل المزامنة اليدوية (كود '+badStatus+')', shortMsg);
-      });
+      if(!sRes.ok || !rRes.ok){
+        Promise.resolve(!sRes.ok?sRes.text():rRes.text()).then(function(errText){
+          var badStatus = !sRes.ok?sRes.status:rRes.status;
+          console.error('JSONBin error:', badStatus, errText);
+          var shortMsg='';
+          try{ var pj=JSON.parse(errText); shortMsg=pj.message||errText; }catch(e){ shortMsg=errText; }
+          showToast('❌ خطأ '+badStatus+': '+shortMsg.substring(0,60));
+          logError('فشل المزامنة اليدوية (كود '+badStatus+')', shortMsg);
+        });
+      } else {
+        showToast('❌ فشل رفع بعض السجلات اليومية - حاول مجدداً');
+        logError('فشل المزامنة اليدوية', 'فشل رفع أحد الأشهر للسحابة');
+      }
       if(btn){btn.innerHTML='☁️💾';btn.style.opacity='1';}
     }
   }).catch(function(err){
