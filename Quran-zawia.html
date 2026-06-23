@@ -1795,7 +1795,21 @@ function resetMigrationManually(){
 }
 
 // ==================== إعادة محاولة نقل البيانات القديمة يدوياً (نهاية) ====================
-function getMonthKey(dateStr){ return (dateStr||today()).substring(0,7); } // "2026-06"
+// نحسب "مفتاح الأسبوع" بصيغة "YYYY-Www" (مثال: "2026-W25") بدل الشهر الكامل
+// هذا يضمن أن كل ملف يحتوي بيانات أسبوع واحد فقط - حجم صغير ثابت للأبد بغض النظر عن عدد الطلاب أو كثافة التسجيل
+function getMonthKey(dateStr){
+  var d = dateStr ? new Date(dateStr+'T00:00:00') : new Date();
+  if(isNaN(d.getTime())) d = new Date();
+  // نحسب رقم الأسبوع ISO (الأسبوع يبدأ بالاثنين)
+  var tmp = new Date(d.getTime());
+  tmp.setHours(0,0,0,0);
+  // الخميس من نفس الأسبوع يحدد السنة الصحيحة لحالات نهاية/بداية السنة
+  tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay()+6)%7));
+  var firstThursday = new Date(tmp.getFullYear(),0,4);
+  var weekNum = 1 + Math.round(((tmp.getTime()-firstThursday.getTime())/86400000 - 3 + ((firstThursday.getDay()+6)%7))/7);
+  var yearForWeek = tmp.getFullYear();
+  return yearForWeek + '-W' + String(weekNum).padStart(2,'0'); // مثال: "2026-W25"
+}
 
 // ==================== خريطة الأشهر المركزية (مشتركة بين كل الأجهزة) ====================
 // نحتفظ بنسخة محلية مؤقتة (cache) لتسريع الوصول، لكن المصدر الحقيقي دائماً هو السحابة
@@ -2067,14 +2081,20 @@ function loadCurrentMonthLogs(){
   var myToken = window._loadLogsToken;
 
   var map=getLogsBinMap();
-  var thisMonth = getMonthKey(today());
-  var d=new Date(); d.setMonth(d.getMonth()-1);
-  var lastMonth = d.toISOString().substring(0,7);
+  // نحمّل آخر 5 أسابيع (تقريباً شهر كامل) لعرض كافٍ في الصفحة الرئيسية والتقارير
+  var weeksToCheck = [];
+  for(var i=0; i<5; i++){
+    var d = new Date();
+    d.setDate(d.getDate() - (i*7));
+    weeksToCheck.push(getMonthKey(d.toISOString().substring(0,10)));
+  }
+  // إزالة التكرار من قائمة الأسابيع
+  weeksToCheck = weeksToCheck.filter(function(w,idx){ return weeksToCheck.indexOf(w)===idx; });
 
-  var monthsToLoad = [thisMonth, lastMonth].filter(function(mk){ return map[mk]; });
+  var weeksToLoad = weeksToCheck.filter(function(wk){ return map[wk]; });
 
-  if(!monthsToLoad.length){
-    // ما فيش بينات شهرية بعد (النقل لسا قيد التنفيذ أو فشل) — نستخدم النسخة المحلية الاحتياطية
+  if(!weeksToLoad.length){
+    // ما فيش بينات أسبوعية بعد (النقل لسا قيد التنفيذ أو فشل) — نستخدم النسخة المحلية الاحتياطية
     if(myToken !== window._loadLogsToken) return; // عملية أحدث بدأت، نتجاهل هذي
     var cached = JSON.parse(localStorage.getItem('kq_logs')||'[]');
     if(cached.length) logs = dedupeLogsById(cached);
@@ -2083,8 +2103,8 @@ function loadCurrentMonthLogs(){
     return;
   }
 
-  var promises = monthsToLoad.map(function(mk){
-    return fetch('https://api.jsonbin.io/v3/b/'+map[mk]+'/latest',{
+  var promises = weeksToLoad.map(function(wk){
+    return fetch('https://api.jsonbin.io/v3/b/'+map[wk]+'/latest',{
       headers:{'X-Access-Key':window._KEY}
     }).then(function(r){return r.json();}).then(function(d){
       return (d.record&&d.record.logs)||[];
@@ -3277,17 +3297,42 @@ function printForDate(date,title){
 }
 function printMonthlyReport(){
   var sid=parseInt(document.getElementById('monthly-student')?document.getElementById('monthly-student').value:0);
-  var month=document.getElementById('monthly-month')?document.getElementById('monthly-month').value:'';
+  var month=document.getElementById('monthly-month')?document.getElementById('monthly-month').value:''; // "YYYY-MM"
   if(!sid||!month){showToast('اختر الطالب والشهر');return;}
   var s=students.find(function(x){return x.id===sid;}); if(!s) return;
 
-  // لو الشهر المطلوب غير محمّل حالياً في logs، نجيبه من بينه الخاص أولاً
+  // لو كل أيام الشهر المطلوب غير محمّلة حالياً في logs، نجلب كل الأسابيع المتقاطعة مع هذا الشهر
   var hasMonthLoaded = logs.some(function(l){ return l.date && l.date.startsWith(month); });
   var map = getLogsBinMap();
-  if(!hasMonthLoaded && map[month]){
+
+  if(!hasMonthLoaded){
     showToast('⏳ جاري تحميل بيانات الشهر...');
-    loadLogsForMonth(month, function(monthLogs){
-      renderMonthlyReportHTML(s, month, monthLogs);
+    // نحدد كل الأسابيع (مفاتيح التخزين) التي تحتوي على أيام من هذا الشهر التقويمي
+    var parts0 = month.split('-');
+    var y0 = parseInt(parts0[0]), m0 = parseInt(parts0[1]);
+    var daysInMonth = new Date(y0, m0, 0).getDate();
+    var weekKeysForMonth = [];
+    for(var dd=1; dd<=daysInMonth; dd++){
+      var dateStr = month+'-'+String(dd).padStart(2,'0');
+      var wk = getMonthKey(dateStr);
+      if(weekKeysForMonth.indexOf(wk)===-1) weekKeysForMonth.push(wk);
+    }
+    var weeksWithBins = weekKeysForMonth.filter(function(wk){ return map[wk]; });
+
+    if(!weeksWithBins.length){
+      renderMonthlyReportHTML(s, month, []);
+      return;
+    }
+
+    var promises = weeksWithBins.map(function(wk){
+      return new Promise(function(resolve){
+        loadLogsForMonth(wk, resolve);
+      });
+    });
+    Promise.all(promises).then(function(results){
+      var merged = [];
+      results.forEach(function(arr){ merged = merged.concat(arr); });
+      renderMonthlyReportHTML(s, month, dedupeLogsById(merged));
     });
   } else {
     var sL=logs.filter(function(l){return l.studentId===sid&&l.date&&l.date.startsWith(month);});
