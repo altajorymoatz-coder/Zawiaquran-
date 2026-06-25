@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>أداة استرداد البيانات - زاوية النفاتي</title>
+<style>
+  body{font-family:'Cairo',Arial,sans-serif;background:#0d3320;color:#f5f0e8;margin:0;padding:16px;direction:rtl;}
+  h1{color:#c8a84b;font-size:1.3rem;text-align:center;}
+  h2{color:#c8a84b;font-size:1.05rem;border-bottom:1px solid rgba(200,168,75,.3);padding-bottom:6px;margin-top:24px;}
+  .card{background:rgba(255,255,255,.05);border:1px solid rgba(200,168,75,.25);border-radius:12px;padding:14px;margin-bottom:14px;}
+  button{background:linear-gradient(135deg,#c8a84b,#8a6f2e);color:#0d3320;border:none;border-radius:10px;padding:12px 20px;font-weight:700;font-size:.95rem;cursor:pointer;width:100%;margin-bottom:8px;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  button.danger{background:linear-gradient(135deg,#c83452,#8a1f30);color:#fff;}
+  button.secondary{background:rgba(255,255,255,.1);color:#f5f0e8;border:1px solid rgba(255,255,255,.3);}
+  .log-line{font-size:.78rem;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.08);word-break:break-word;}
+  .ok{color:#80d4a0;} .err{color:#f08080;} .info{color:#99bbff;}
+  #output{max-height:400px;overflow-y:auto;background:rgba(0,0,0,.25);border-radius:10px;padding:10px;}
+  .stat{display:inline-block;background:rgba(200,168,75,.15);border-radius:8px;padding:8px 14px;margin:4px;text-align:center;}
+  .stat b{display:block;font-size:1.3rem;color:#c8a84b;}
+  textarea{width:100%;height:160px;background:#08200f;color:#f5f0e8;border:1px solid rgba(200,168,75,.3);border-radius:8px;padding:8px;font-family:monospace;font-size:.75rem;box-sizing:border-box;}
+</style>
+</head>
+<body>
+
+<h1>🔧 أداة استرداد وتجميع البيانات المبعثرة</h1>
+<p style="text-align:center;font-size:.85rem;color:#a0c0a8;">
+هذه الأداة تجمع كل السجلات الحقيقية من البينات القديمة المتروكة، تحذف التكرار، وتعيد توزيعها على البينات الأسبوعية الصحيحة حسب التاريخ الفعلي لكل سجل — <b>بدون حذف أي بيانات من البينات القديمة نفسها</b>.
+</p>
+
+<div class="card">
+  <h2>الخطوة 1: قائمة البينات المراد فحصها</h2>
+  <p style="font-size:.8rem;">قائمة Bin IDs (واحد في كل سطر):</p>
+  <textarea id="binList">6a3a275df5f4af5e29215287
+6a3a275cf5f4af5e29215286
+6a3a275ada38895dfeefc959
+6a3a2759f5f4af5e29215274
+6a37fd0af5f4af5e2918ac80
+6a37fd08f5f4af5e2918ac7f
+6a36eda3da38895dfee41650
+6a36e0b8da38895dfee3eaa1
+6a36cf43da38895dfee3ad95
+6a36b9b1f5f4af5e2914d6dd
+6a36b729f5f4af5e2914cd07
+6a36b605f5f4af5e2914c889
+6a36ab68da38895dfee319b7
+6a36ab1ada38895dfee3187b
+6a36aae8da38895dfee317b4
+6a36aae6f5f4af5e29149b98
+6a36a5c9da38895dfee30655
+6a36a541da38895dfee30457
+6a36a4ddf5f4af5e291486f2
+6a36a047da38895dfee2f363
+6a369e12f5f4af5e29147056
+6a369e10da38895dfee2eca5
+6a369db1da38895dfee2eb67
+6a35cc7bda38895dfee06692
+6a3590fcf5f4af5e2910dca9
+6a3590fbda38895dfedf5831
+6a358fbdf5f4af5e2910d6cc
+6a352ff3f5f4af5e290ec253
+6a3450c8f5f4af5e290b18e3
+6a3450c8da38895dfed994a2
+6a340d6fda38895dfed7f7a8
+6a340d6ff5f4af5e290979fe
+6a33d5c1f5f4af5e290823ec
+6a33d5a5f5f4af5e29082353
+6a33d578f5f4af5e2908224b
+6a2415b2f5f4af5e29c244ff
+6a3b24ebf5f4af5e29263d8a</textarea>
+  <br><br>
+  <button onclick="startScan()" id="scanBtn">🔍 المرحلة 1: فحص كل البينات واستخراج السجلات</button>
+</div>
+
+<div class="card" id="resultsCard" style="display:none;">
+  <h2>نتائج الفحص</h2>
+  <div id="statsBox"></div>
+  <div id="output"></div>
+</div>
+
+<div class="card" id="confirmCard" style="display:none;">
+  <h2>الخطوة 2: تأكيد الكتابة</h2>
+  <p style="font-size:.85rem;color:#f0d080;">⚠️ سيتم كتابة السجلات المجمّعة والمنظّفة في البينات الأسبوعية الصحيحة (حسب الخريطة المركزية الحالية)، وإنشاء بينات جديدة لأي أسبوع لا بين له بعد. لن يُحذف أو يُعدَّل أي بين من القائمة أعلاه.</p>
+  <button class="secondary" onclick="downloadBackup()">💾 تحميل نسخة احتياطية (JSON) قبل الكتابة</button>
+  <button class="danger" onclick="writeConsolidated()" id="writeBtn">✅ كتابة البيانات المجمّعة للبينات الأسبوعية</button>
+</div>
+
+<script>
+var KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
+var MONTHS_BIN = '6a36beaaf5f4af5e2914ebda';
+var allLogs = [];
+var allStudents = [];
+var monthsMap = {};
+
+function logLine(msg, cls){
+  var out = document.getElementById('output');
+  var d = document.createElement('div');
+  d.className = 'log-line ' + (cls||'');
+  d.textContent = msg;
+  out.appendChild(d);
+  out.scrollTop = out.scrollHeight;
+}
+
+function getWeekKey(dateStr){
+  if(!dateStr) return null;
+  var d = new Date(dateStr+'T00:00:00');
+  if(isNaN(d.getTime())) return null;
+  var tmp = new Date(d.getTime());
+  tmp.setHours(0,0,0,0);
+  tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay()+6)%7));
+  var firstThursday = new Date(tmp.getFullYear(),0,4);
+  var weekNum = 1 + Math.round(((tmp.getTime()-firstThursday.getTime())/86400000 - 3 + ((firstThursday.getDay()+6)%7))/7);
+  return tmp.getFullYear() + '-W' + String(weekNum).padStart(2,'0');
+}
+
+function dedupe(arr){
+  var byKey = {};
+  arr.forEach(function(l){
+    if(!l || l.studentId==null || !l.date) return;
+    var key = l.studentId + '_' + l.date;
+    var existing = byKey[key];
+    if(!existing){ byKey[key] = l; }
+    else {
+      var eId = parseFloat(existing.id)||0, nId = parseFloat(l.id)||0;
+      if(nId > eId) byKey[key] = l;
+    }
+  });
+  return Object.keys(byKey).map(function(k){ return byKey[k]; });
+}
+
+function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+async function startScan(){
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('output').innerHTML = '';
+  allLogs = [];
+  allStudents = [];
+
+  var binIds = document.getElementById('binList').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  logLine('بدء فحص ' + binIds.length + ' بين...', 'info');
+
+  for(var i=0; i<binIds.length; i++){
+    var id = binIds[i];
+    try{
+      var r = await fetch('https://api.jsonbin.io/v3/b/'+id+'/latest', {headers:{'X-Access-Key':KEY}});
+      if(!r.ok){
+        logLine('❌ ' + id + ' — فشل القراءة (كود ' + r.status + ')', 'err');
+        await sleep(200);
+        continue;
+      }
+      var data = await r.json();
+      var record = data.record || {};
+      var logsArr = record.logs || [];
+      var studs = record.students || [];
+
+      if(studs.length){
+        allStudents = allStudents.concat(studs);
+        logLine('👥 ' + id + ' — يحتوي ' + studs.length + ' طالب (بين طلاب)', 'info');
+      }
+      if(logsArr.length){
+        allLogs = allLogs.concat(logsArr);
+        logLine('✅ ' + id + ' — ' + logsArr.length + ' سجل', 'ok');
+      }
+      if(!studs.length && !logsArr.length){
+        logLine('⬜ ' + id + ' — فارغ', '');
+      }
+    }catch(e){
+      logLine('❌ ' + id + ' — خطأ شبكة: ' + e.message, 'err');
+    }
+    await sleep(250); // تهدئة بين الطلبات لتجنب الضغط على الشبكة
+  }
+
+  var before = allLogs.length;
+  allLogs = dedupe(allLogs);
+  var after = allLogs.length;
+
+  document.getElementById('statsBox').innerHTML =
+    '<div class="stat"><b>' + before + '</b>إجمالي السجلات الموجودة</div>' +
+    '<div class="stat"><b>' + after + '</b>بعد حذف التكرار</div>' +
+    '<div class="stat"><b>' + (before-after) + '</b>تكرار محذوف</div>';
+
+  logLine('━━━━━━━━━━━━━━━━━━━━', '');
+  logLine('انتهى الفحص. ' + after + ' سجل فريد جاهز للتوزيع على الأسابيع الصحيحة.', 'ok');
+
+  document.getElementById('confirmCard').style.display = 'block';
+  document.getElementById('scanBtn').disabled = false;
+}
+
+function downloadBackup(){
+  var blob = new Blob([JSON.stringify({logs:allLogs, students:allStudents}, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'backup-consolidated-' + Date.now() + '.json';
+  a.click();
+}
+
+async function writeConsolidated(){
+  document.getElementById('writeBtn').disabled = true;
+  logLine('━━━━━━━━━━━━━━━━━━━━', '');
+  logLine('جلب خريطة الأسابيع الحالية من السحابة...', 'info');
+
+  var mapRes = await fetch('https://api.jsonbin.io/v3/b/'+MONTHS_BIN+'/latest', {headers:{'X-Access-Key':KEY}});
+  var mapData = await mapRes.json();
+  monthsMap = (mapData.record && mapData.record.months) || {};
+
+  var byWeek = {};
+  allLogs.forEach(function(l){
+    var wk = getWeekKey(l.date);
+    if(!wk) return;
+    if(!byWeek[wk]) byWeek[wk] = [];
+    byWeek[wk].push(l);
+  });
+
+  var weekKeys = Object.keys(byWeek);
+  logLine('السجلات موزّعة على ' + weekKeys.length + ' أسبوع. جاري الكتابة...', 'info');
+
+  for(var i=0; i<weekKeys.length; i++){
+    var wk = weekKeys[i];
+    var weekLogs = byWeek[wk];
+    var binId = monthsMap[wk];
+
+    try{
+      if(binId){
+        var existingRes = await fetch('https://api.jsonbin.io/v3/b/'+binId+'/latest', {headers:{'X-Access-Key':KEY}});
+        var existingData = await existingRes.json();
+        var existingLogs = (existingData.record && existingData.record.logs) || [];
+        var merged = dedupe(existingLogs.concat(weekLogs));
+
+        var putRes = await fetch('https://api.jsonbin.io/v3/b/'+binId, {
+          method:'PUT',
+          headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+          body:JSON.stringify({logs:merged})
+        });
+        if(putRes.ok){
+          logLine('✅ ' + wk + ' (' + binId + ') — تم تحديث ' + merged.length + ' سجل', 'ok');
+        } else {
+          logLine('❌ ' + wk + ' — فشل الكتابة (كود ' + putRes.status + ')', 'err');
+        }
+      } else {
+        var createRes = await fetch('https://api.jsonbin.io/v3/b', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+          body:JSON.stringify({logs:weekLogs})
+        });
+        var createData = await createRes.json();
+        var newId = createData.metadata && createData.metadata.id;
+        if(newId){
+          monthsMap[wk] = newId;
+          logLine('🆕 ' + wk + ' (' + newId + ') — بين جديد بـ ' + weekLogs.length + ' سجل', 'ok');
+        } else {
+          logLine('❌ ' + wk + ' — فشل إنشاء بين جديد', 'err');
+        }
+      }
+    }catch(e){
+      logLine('❌ ' + wk + ' — خطأ: ' + e.message, 'err');
+    }
+    await sleep(300);
+  }
+
+  // أخيراً: نحفظ الخريطة المحدّثة (لو أنشأنا بينات جديدة) في بين التوجيه المركزي
+  try{
+    var saveMapRes = await fetch('https://api.jsonbin.io/v3/b/'+MONTHS_BIN, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+      body:JSON.stringify({months:monthsMap})
+    });
+    if(saveMapRes.ok){
+      logLine('✅ تم تحديث خريطة الأسابيع المركزية بنجاح', 'ok');
+    } else {
+      logLine('❌ فشل حفظ خريطة الأسابيع (كود ' + saveMapRes.status + ')', 'err');
+    }
+  }catch(e){
+    logLine('❌ خطأ عند حفظ الخريطة: ' + e.message, 'err');
+  }
+
+  // ندمج الطلاب المكتشفين (لو وُجدوا) مع بين الطلاب الحالي
+  if(allStudents.length){
+    logLine('━━━━━━━━━━━━━━━━━━━━', '');
+    logLine('فحص بيانات الطلاب المستخرجة من البينات القديمة...', 'info');
+    try{
+      var studentsBinId = '6a33d338da38895dfed694fb';
+      var curStudRes = await fetch('https://api.jsonbin.io/v3/b/'+studentsBinId+'/latest', {headers:{'X-Access-Key':KEY}});
+      var curStudData = await curStudRes.json();
+      var curStudents = (curStudData.record && curStudData.record.students) || [];
+      var existingIds = {};
+      curStudents.forEach(function(s){ existingIds[s.id] = true; });
+      var newStudents = allStudents.filter(function(s){ return s.id!=null && !existingIds[s.id]; });
+
+      if(newStudents.length){
+        logLine('⚠️ وُجد ' + newStudents.length + ' طالب في البينات القديمة غير موجود في بين الطلاب الحالي — لم نضفه تلقائياً للسلامة. راجعهم يدوياً في النسخة الاحتياطية المُحمَّلة.', 'err');
+      } else {
+        logLine('✅ كل الطلاب المستخرجين موجودون بالفعل في بين الطلاب الحالي - لا حاجة لأي إضافة', 'ok');
+      }
+    }catch(e){
+      logLine('❌ خطأ عند فحص الطلاب: ' + e.message, 'err');
+    }
+  }
+
+  logLine('━━━━━━━━━━━━━━━━━━━━', '');
+  logLine('🎉 انتهت العملية. افتح المنظومة الآن وتحقق من ظهور كل البيانات.', 'ok');
+}
+</script>
+</body>
+</html>
