@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>أداة التنظيف الشامل - زاوية النفاتي</title>
+<style>
+  body{font-family:'Cairo',Arial,sans-serif;background:#0d3320;color:#f5f0e8;margin:0;padding:16px;direction:rtl;}
+  h1{color:#c8a84b;font-size:1.3rem;text-align:center;}
+  h2{color:#c8a84b;font-size:1.05rem;border-bottom:1px solid rgba(200,168,75,.3);padding-bottom:6px;margin-top:24px;}
+  .card{background:rgba(255,255,255,.05);border:1px solid rgba(200,168,75,.25);border-radius:12px;padding:14px;margin-bottom:14px;}
+  .warn{background:rgba(200,52,74,.15);border:1px solid rgba(200,52,74,.5);border-radius:12px;padding:14px;margin-bottom:14px;}
+  button{background:linear-gradient(135deg,#c8a84b,#8a6f2e);color:#0d3320;border:none;border-radius:10px;padding:12px 20px;font-weight:700;font-size:.95rem;cursor:pointer;width:100%;margin-bottom:8px;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  button.danger{background:linear-gradient(135deg,#c83452,#8a1f30);color:#fff;}
+  .log-line{font-size:.78rem;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.08);word-break:break-word;}
+  .ok{color:#80d4a0;} .err{color:#f08080;} .info{color:#99bbff;}
+  #output{max-height:400px;overflow-y:auto;background:rgba(0,0,0,.25);border-radius:10px;padding:10px;}
+  .stat{display:inline-block;background:rgba(200,168,75,.15);border-radius:8px;padding:8px 14px;margin:4px;text-align:center;}
+  .stat b{display:block;font-size:1.3rem;color:#c8a84b;}
+  input[type=checkbox]{width:18px;height:18px;vertical-align:middle;margin-left:8px;}
+  label{font-size:.9rem;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<h1>🧹 أداة التنظيف الشامل للبدء من جديد</h1>
+
+<div class="warn">
+  <b>⚠️ هذه الأداة تحذف كل السجلات اليومية (القراءة/الحضور/الغياب) نهائياً من السحابة ومن هذا الهاتف.</b><br><br>
+  <b>لن يُحذف:</b> بيانات الطلاب (الأسماء، الأرقام، السور) ولا المراجعات.<br>
+  بعد التنفيذ، تبدأ بسجل يومي فاضي تماماً لكل الطلاب، بدون أي أخطاء أو تراكمات قديمة.
+</div>
+
+<div class="card">
+  <h2>الخطوة 1: تأكيد ما سيُحذف وما سيبقى</h2>
+  <label><input type="checkbox" id="confirm1"> أوافق على حذف كل السجلات اليومية نهائياً (لا يمكن التراجع بدون النسخة الاحتياطية)</label><br><br>
+  <label><input type="checkbox" id="confirm2"> أؤكد أن بيانات الطلاب (72 طالب) يجب أن تبقى كما هي بدون أي تغيير</label><br><br>
+  <button onclick="downloadFullBackup()" id="backupBtn">💾 الخطوة الأولى الإلزامية: تحميل نسخة احتياطية كاملة من كل شيء</button>
+  <button class="danger" onclick="startCleanup()" id="cleanBtn" disabled>🧹 حذف كل السجلات اليومية الآن</button>
+</div>
+
+<div class="card" id="resultsCard" style="display:none;">
+  <h2>سجل العملية</h2>
+  <div id="statsBox"></div>
+  <div id="output"></div>
+</div>
+
+<script>
+var KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
+var BIN_STUDENTS = '6a33d338da38895dfed694fb';
+var BIN_REVIEWS  = '6a33d361da38895dfed695d3';
+var BIN_OLD      = '6a2415b2f5f4af5e29c244ff';
+var BIN_MONTHS   = '6a36beaaf5f4af5e2914ebda';
+
+var backupDone = false;
+var fullBackupData = null;
+
+function logLine(msg, cls){
+  var out = document.getElementById('output');
+  document.getElementById('resultsCard').style.display = 'block';
+  var d = document.createElement('div');
+  d.className = 'log-line ' + (cls||'');
+  d.textContent = msg;
+  out.appendChild(d);
+  out.scrollTop = out.scrollHeight;
+}
+function sleep(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+document.getElementById('confirm1').addEventListener('change', checkBoxes);
+document.getElementById('confirm2').addEventListener('change', checkBoxes);
+function checkBoxes(){
+  var bothChecked = document.getElementById('confirm1').checked && document.getElementById('confirm2').checked;
+  document.getElementById('cleanBtn').disabled = !(bothChecked && backupDone);
+}
+
+async function downloadFullBackup(){
+  document.getElementById('backupBtn').disabled = true;
+  logLine('جلب نسخة احتياطية كاملة من كل البينات قبل أي حذف...', 'info');
+
+  var result = { students:[], reviews:[], weeklyLogs:{}, oldBinLogs:[], monthsMap:{} };
+
+  try{
+    var sRes = await fetch('https://api.jsonbin.io/v3/b/'+BIN_STUDENTS+'/latest', {headers:{'X-Access-Key':KEY}});
+    var sData = await sRes.json();
+    result.students = (sData.record && sData.record.students) || [];
+    logLine('✅ تم نسخ ' + result.students.length + ' طالب', 'ok');
+  }catch(e){ logLine('❌ خطأ أثناء نسخ الطلاب: ' + e.message, 'err'); }
+
+  await sleep(200);
+  try{
+    var rRes = await fetch('https://api.jsonbin.io/v3/b/'+BIN_REVIEWS+'/latest', {headers:{'X-Access-Key':KEY}});
+    var rData = await rRes.json();
+    result.reviews = (rData.record && rData.record.reviews) || [];
+    logLine('✅ تم نسخ ' + result.reviews.length + ' مراجعة', 'ok');
+  }catch(e){ logLine('❌ خطأ أثناء نسخ المراجعات: ' + e.message, 'err'); }
+
+  await sleep(200);
+  try{
+    var mRes = await fetch('https://api.jsonbin.io/v3/b/'+BIN_MONTHS+'/latest', {headers:{'X-Access-Key':KEY}});
+    var mData = await mRes.json();
+    result.monthsMap = (mData.record && mData.record.months) || {};
+    logLine('✅ تم نسخ خريطة الأسابيع (' + Object.keys(result.monthsMap).length + ' أسبوع)', 'ok');
+
+    var weekKeys = Object.keys(result.monthsMap);
+    for(var i=0; i<weekKeys.length; i++){
+      var wk = weekKeys[i];
+      var binId = result.monthsMap[wk];
+      try{
+        var wRes = await fetch('https://api.jsonbin.io/v3/b/'+binId+'/latest', {headers:{'X-Access-Key':KEY}});
+        var wData = await wRes.json();
+        result.weeklyLogs[wk] = (wData.record && wData.record.logs) || [];
+        logLine('✅ نسخ أسبوع ' + wk + ' (' + result.weeklyLogs[wk].length + ' سجل)', 'ok');
+      }catch(e){
+        logLine('❌ خطأ نسخ أسبوع ' + wk + ': ' + e.message, 'err');
+      }
+      await sleep(200);
+    }
+  }catch(e){ logLine('❌ خطأ أثناء نسخ خريطة الأسابيع: ' + e.message, 'err'); }
+
+  await sleep(200);
+  try{
+    var oRes = await fetch('https://api.jsonbin.io/v3/b/'+BIN_OLD+'/latest', {headers:{'X-Access-Key':KEY}});
+    var oData = await oRes.json();
+    result.oldBinLogs = (oData.record && oData.record.logs) || [];
+    logLine('✅ تم نسخ البين القديم الكبير (' + result.oldBinLogs.length + ' سجل)', 'ok');
+  }catch(e){ logLine('❌ خطأ أثناء نسخ البين القديم: ' + e.message, 'err'); }
+
+  fullBackupData = result;
+  var blob = new Blob([JSON.stringify(result, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'full-backup-before-cleanup-' + Date.now() + '.json';
+  a.click();
+
+  logLine('━━━━━━━━━━━━━━━━━━━━', '');
+  logLine('🎉 تم تحميل النسخة الاحتياطية الكاملة بنجاح. الآن يمكنك تفعيل خانتي التأكيد والضغط على زر الحذف.', 'ok');
+
+  backupDone = true;
+  checkBoxes();
+}
+
+async function startCleanup(){
+  document.getElementById('cleanBtn').disabled = true;
+  logLine('━━━━━━━━━━━━━━━━━━━━', '');
+  logLine('بدء التنظيف الشامل...', 'info');
+
+  // 1) تفريغ كل بينات الأسابيع المعروفة بالخريطة المركزية
+  if(fullBackupData && fullBackupData.monthsMap){
+    var weekKeys = Object.keys(fullBackupData.monthsMap);
+    for(var i=0; i<weekKeys.length; i++){
+      var wk = weekKeys[i];
+      var binId = fullBackupData.monthsMap[wk];
+      try{
+        var r = await fetch('https://api.jsonbin.io/v3/b/'+binId, {
+          method:'PUT',
+          headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+          body:JSON.stringify({logs:[]})
+        });
+        if(r.ok){ logLine('✅ تم تفريغ أسبوع ' + wk, 'ok'); }
+        else{ logLine('❌ فشل تفريغ أسبوع ' + wk + ' (كود ' + r.status + ')', 'err'); }
+      }catch(e){ logLine('❌ خطأ تفريغ أسبوع ' + wk + ': ' + e.message, 'err'); }
+      await sleep(300);
+    }
+  }
+
+  // 2) تفريغ البين القديم الكبير (نُبقي عليه فاضياً وليس محذوفاً)
+  try{
+    var oldR = await fetch('https://api.jsonbin.io/v3/b/'+BIN_OLD, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+      body:JSON.stringify({logs:[]})
+    });
+    if(oldR.ok){ logLine('✅ تم تفريغ البين القديم الكبير', 'ok'); }
+    else{ logLine('❌ فشل تفريغ البين القديم (كود ' + oldR.status + ')', 'err'); }
+  }catch(e){ logLine('❌ خطأ تفريغ البين القديم: ' + e.message, 'err'); }
+
+  await sleep(300);
+
+  // 3) تصفير خريطة الأسابيع المركزية نفسها (نبدأ بخريطة فاضية - أسابيع جديدة تُنشأ تلقائياً عند أول تسجيل)
+  try{
+    var mapR = await fetch('https://api.jsonbin.io/v3/b/'+BIN_MONTHS, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+      body:JSON.stringify({months:{}})
+    });
+    if(mapR.ok){ logLine('✅ تم تصفير خريطة الأسابيع المركزية - ستُبنى من جديد تلقائياً', 'ok'); }
+    else{ logLine('❌ فشل تصفير الخريطة (كود ' + mapR.status + ')', 'err'); }
+  }catch(e){ logLine('❌ خطأ تصفير الخريطة: ' + e.message, 'err'); }
+
+  // 4) تأكيد عدم لمس الطلاب والمراجعات (لا نعمل أي كتابة عليهم إطلاقاً)
+  logLine('ℹ️ بيانات الطلاب والمراجعات لم تُلمس أبداً (لا توجد أي عملية كتابة عليها في هذه الأداة)', 'info');
+
+  // 5) تصفير البيانات المحلية في هذا الهاتف (localStorage) لبدء نظيف فوري
+  try{
+    localStorage.removeItem('kq_logs');
+    localStorage.removeItem('kq_logs_bin_map');
+    localStorage.removeItem('kq_migrated_old_logs');
+    localStorage.removeItem('kq_error_log');
+    logLine('✅ تم تصفير البيانات المحلية لهذا الهاتف (localStorage)', 'ok');
+  }catch(e){ logLine('❌ خطأ تصفير البيانات المحلية: ' + e.message, 'err'); }
+
+  logLine('━━━━━━━━━━━━━━━━━━━━', '');
+  logLine('🎉 انتهى التنظيف الشامل. افتح المنظومة الآن - يجب أن تظهر 0 سجلات مع بقاء كل الطلاب.', 'ok');
+  logLine('⚠️ تذكير: على باقي الأجهزة (هاتف الشيخ مثلاً)، يلزم مسح بيانات الموقع محلياً أيضاً (localStorage) أو فتح المنظومة من جديد بعد تحديثها لضمان توافق كامل.', 'info');
+}
+</script>
+</body>
+</html>
