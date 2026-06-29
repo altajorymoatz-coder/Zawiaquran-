@@ -348,17 +348,12 @@ tr:hover td{background:rgba(200,168,75,.05);}
     </div>
   </div>
   <div class="card">
-    <div class="card-title">📋 سجل المراجعات</div>
+    <div class="card-title">📋 سجل المراجعات (مصنّفة حسب اليوم)</div>
     <div style="position:relative;margin-bottom:12px;">
       <input type="text" id="search-reviews" placeholder="🔍 بحث باسم الطالب..." oninput="renderReviewsTable()">
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>الرقم</th><th>الطالب</th><th>السورة</th><th>التاريخ</th><th>نطاق المراجعة</th><th>الأثمان</th><th>التقييم</th><th>حذف</th></tr></thead>
-        <tbody id="reviews-tbody"></tbody>
-      </table>
-      <div id="reviews-empty" class="empty-state" style="display:none"><div class="icon">🔄</div><div>لا توجد مراجعات مسجّلة بعد</div></div>
-    </div>
+    <div id="reviews-by-day-container"></div>
+    <div id="reviews-empty" class="empty-state" style="display:none"><div class="icon">🔄</div><div>لا توجد مراجعات مسجّلة بعد</div></div>
   </div>
 </div>
 
@@ -1944,8 +1939,31 @@ function initApp(){
         localStorage.setItem('kq_lastSaved',String(cloudTime));
       }
       renderHome(); renderStudentsTable(); fillAllStudentSels();
-      if(window._dirty) save(); // يرفع النسخة المدمجة فوراً لتصل لباقي الأجهزة
     }
+
+    // جلب المراجعات من بينها الخاص بالسحابة ودمجها بأمان (سجل واحد لكل id، الأحدث يكسب)
+    fetch('https://api.jsonbin.io/v3/b/'+window._BIN_REVIEWS+'/latest',{
+      headers:{'X-Access-Key':window._KEY}
+    })
+    .then(function(r){ return r.ok?r.json():{record:{}}; })
+    .catch(function(){ return {record:{}}; })
+    .then(function(dReviews){
+      var cloudReviews = (dReviews.record||{}).reviews || [];
+      if(cloudReviews.length || reviews.length){
+        var mergedReviews = {};
+        cloudReviews.forEach(function(r){ mergedReviews[r.id] = r; });
+        reviews.forEach(function(r){
+          // لو المراجعة المحلية غير موجودة بالسحابة (جديدة لسا ما رفعتش)، نضيفها
+          // لو موجودة، نُبقي نسخة السحابة (الأحدث عادة لأنها وصلت من جهاز آخر)
+          if(!mergedReviews[r.id]) mergedReviews[r.id] = r;
+        });
+        reviews = Object.keys(mergedReviews).map(function(k){ return mergedReviews[k]; })
+          .sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+        localStorage.setItem('kq_reviews', JSON.stringify(reviews));
+        if(typeof renderReviewsTable==='function') renderReviewsTable();
+      }
+      if(window._dirty) save(); // يرفع أي دمج محلي جديد فوراً لتصل لباقي الأجهزة
+    });
 
     // ثالثاً: بعد الطلاب نجيب السجلات (بتأخير عشان ما يتعارضوا)
     setTimeout(function(){
@@ -2823,24 +2841,53 @@ function deleteReview(rid){
 
 function renderReviewsTable(){
   const q=document.getElementById('search-reviews')?.value.toLowerCase()||'';
-  const tbody=document.getElementById('reviews-tbody');
+  const container=document.getElementById('reviews-by-day-container');
   const empty=document.getElementById('reviews-empty');
-  if(!tbody) return;
-  const filtered=reviews.filter(r=>{ const s=students.find(x=>x.id===r.studentId); return s&&s.name.toLowerCase().includes(q); }).sort((a,b)=>b.date.localeCompare(a.date));
-  if(!filtered.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  if(!container) return;
+
+  const filtered=reviews.filter(r=>{ const s=students.find(x=>x.id===r.studentId); return s&&s.name.toLowerCase().includes(q); });
+
+  if(!filtered.length){ container.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
-  tbody.innerHTML=filtered.map(r=>{
-    const s=students.find(x=>x.id===r.studentId);
-    return `<tr>
-      <td><span class="badge bg">${String(s.id).padStart(3,'0')}</span></td>
-      <td><strong>${s.name}</strong></td>
-      <td>${s.surahName?`<span class="badge bg2">${s.surahName}</span>`:'—'}</td>
-      <td>${fmtDate(r.date)}</td>
-      <td style="font-size:.82rem;">${r.from||'—'} ← ${r.to||'—'}</td>
-      <td>${r.athman?r.athman+' ثمن':'—'}</td>
-      <td>${r.rating?`<span class="badge bg3">${r.rating}</span>`:'—'}${r.note?`<br><small style="color:#a0c0a8">${r.note}</small>`:''}</td>
-      <td><button class="btn btn-danger" onclick="deleteReview(${r.id})">🗑️</button></td>
-    </tr>`;
+
+  // تجميع المراجعات حسب التاريخ
+  const byDate={};
+  filtered.forEach(r=>{
+    if(!byDate[r.date]) byDate[r.date]=[];
+    byDate[r.date].push(r);
+  });
+
+  // ترتيب الأيام من الأحدث للأقدم
+  const sortedDates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+
+  container.innerHTML=sortedDates.map(date=>{
+    const dayReviews=byDate[date].sort((a,b)=>(a.studentId-b.studentId));
+    const rows=dayReviews.map(r=>{
+      const s=students.find(x=>x.id===r.studentId);
+      if(!s) return '';
+      return `<tr>
+        <td><span class="badge bg">${String(s.id).padStart(3,'0')}</span></td>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.surahName?`<span class="badge bg2">${s.surahName}</span>`:'—'}</td>
+        <td style="font-size:.82rem;">${r.from||'—'} ← ${r.to||'—'}</td>
+        <td>${r.athman?r.athman+' ثمن':'—'}</td>
+        <td>${r.rating?`<span class="badge bg3">${r.rating}</span>`:'—'}${r.note?`<br><small style="color:#a0c0a8">${r.note}</small>`:''}</td>
+        <td><button class="btn btn-danger" onclick="deleteReview(${r.id})">🗑️</button></td>
+      </tr>`;
+    }).join('');
+
+    return `<div style="margin-bottom:18px;">
+      <div style="background:rgba(200,168,75,.15);border-radius:8px;padding:8px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;color:var(--gold);">📅 ${fmtDate(date)}</span>
+        <span style="font-size:.78rem;color:#a0c0a8;">${dayReviews.length} مراجعة</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الرقم</th><th>الطالب</th><th>السورة</th><th>نطاق المراجعة</th><th>الأثمان</th><th>التقييم</th><th>حذف</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
   }).join('');
 }
 
