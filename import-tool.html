@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>أداة استيراد الطلاب - زاوية النفاتي</title>
+<style>
+  body{font-family:'Cairo',Arial,sans-serif;background:#0d3320;color:#f5f0e8;margin:0;padding:16px;direction:rtl;}
+  h1{color:#c8a84b;font-size:1.3rem;text-align:center;}
+  h2{color:#c8a84b;font-size:1.05rem;border-bottom:1px solid rgba(200,168,75,.3);padding-bottom:6px;margin-top:24px;}
+  .card{background:rgba(255,255,255,.05);border:1px solid rgba(200,168,75,.25);border-radius:12px;padding:14px;margin-bottom:14px;}
+  .warn{background:rgba(200,52,74,.12);border:1px solid rgba(200,52,74,.4);border-radius:12px;padding:14px;margin-bottom:14px;font-size:.85rem;}
+  button{background:linear-gradient(135deg,#c8a84b,#8a6f2e);color:#0d3320;border:none;border-radius:10px;padding:12px 20px;font-weight:700;font-size:.95rem;cursor:pointer;width:100%;margin-bottom:8px;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  button.danger{background:linear-gradient(135deg,#c83452,#8a1f30);color:#fff;}
+  .log-line{font-size:.78rem;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.08);word-break:break-word;}
+  .ok{color:#80d4a0;} .err{color:#f08080;} .info{color:#99bbff;}
+  #output{max-height:400px;overflow-y:auto;background:rgba(0,0,0,.25);border-radius:10px;padding:10px;}
+  .stat{display:inline-block;background:rgba(200,168,75,.15);border-radius:8px;padding:8px 14px;margin:4px;text-align:center;}
+  .stat b{display:block;font-size:1.3rem;color:#c8a84b;}
+  input[type=file]{width:100%;padding:10px;background:rgba(255,255,255,.08);border:1px solid rgba(200,168,75,.3);border-radius:8px;color:#f5f0e8;margin-bottom:10px;}
+  table{width:100%;font-size:.78rem;border-collapse:collapse;}
+  th,td{padding:5px;text-align:right;border-bottom:1px solid rgba(255,255,255,.1);}
+</style>
+</head>
+<body>
+
+<h1>📥 أداة استيراد الطلاب للبينات الجديدة</h1>
+
+<div class="warn">
+  هذه الأداة تستورد <b>الطلاب فقط</b> (والمراجعات لو موجودة) من ملف النسخة الاحتياطية، وتكتبهم في البينات الجديدة الفاضية.<br>
+  <b>السجلات اليومية لن تُستورد</b> — هذا مقصود تماماً لأنك تريد بداية سجلات نظيفة من الصفر.
+</div>
+
+<div class="card">
+  <h2>الخطوة 1: اختر ملف النسخة الاحتياطية</h2>
+  <input type="file" id="fileInput" accept=".json">
+  <button onclick="readBackupFile()" id="readBtn">📂 قراءة الملف وعرض المحتوى</button>
+</div>
+
+<div class="card" id="previewCard" style="display:none;">
+  <h2>معاينة قبل الاستيراد</h2>
+  <div id="statsBox"></div>
+  <div style="max-height:250px;overflow-y:auto;">
+    <table>
+      <thead><tr><th>الرقم</th><th>الاسم</th><th>السورة الحالية</th></tr></thead>
+      <tbody id="previewTbody"></tbody>
+    </table>
+  </div>
+  <br>
+  <button class="danger" onclick="startImport()" id="importBtn">✅ استيراد هذا للبينات الجديدة الآن</button>
+</div>
+
+<div class="card" id="resultsCard" style="display:none;">
+  <h2>سجل العملية</h2>
+  <div id="output"></div>
+</div>
+
+<script>
+var KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
+var NEW_BIN_STUDENTS = '6a424de0da38895dfe0f644f';
+var NEW_BIN_REVIEWS  = '6a424dd8f5f4af5e2940f721';
+var NEW_BIN_MONTHS   = '6a424dd1f5f4af5e2940f703';
+
+var parsedStudents = [];
+var parsedReviews = [];
+
+function logLine(msg, cls){
+  document.getElementById('resultsCard').style.display = 'block';
+  var out = document.getElementById('output');
+  var d = document.createElement('div');
+  d.className = 'log-line ' + (cls||'');
+  d.textContent = msg;
+  out.appendChild(d);
+  out.scrollTop = out.scrollHeight;
+}
+
+function readBackupFile(){
+  var fileInput = document.getElementById('fileInput');
+  if(!fileInput.files.length){ alert('اختر ملف النسخة الاحتياطية أولاً'); return; }
+
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var data = JSON.parse(e.target.result);
+      parsedStudents = data.students || [];
+      parsedReviews = data.reviews || [];
+
+      document.getElementById('statsBox').innerHTML =
+        '<div class="stat"><b>' + parsedStudents.length + '</b>طالب</div>' +
+        '<div class="stat"><b>' + parsedReviews.length + '</b>مراجعة</div>';
+
+      document.getElementById('previewTbody').innerHTML = parsedStudents.map(function(s){
+        return '<tr><td>' + (String(s.id).padStart(3,'0')) + '</td><td>' + (s.name||'—') + '</td><td>' + (s.surahName||'—') + '</td></tr>';
+      }).join('');
+
+      document.getElementById('previewCard').style.display = 'block';
+    }catch(err){
+      alert('فشل قراءة الملف: ' + err.message + '\nتأكد أنه ملف JSON صحيح من أداة النسخ الاحتياطي السابقة.');
+    }
+  };
+  reader.readAsText(fileInput.files[0]);
+}
+
+async function startImport(){
+  document.getElementById('importBtn').disabled = true;
+  logLine('بدء الاستيراد للبينات الجديدة...', 'info');
+
+  var maxId = 0;
+  parsedStudents.forEach(function(s){ if(s.id > maxId) maxId = s.id; });
+
+  try{
+    var r1 = await fetch('https://api.jsonbin.io/v3/b/'+NEW_BIN_STUDENTS, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+      body:JSON.stringify({students:parsedStudents, nextId:maxId+1, lastSaved:Date.now()})
+    });
+    if(r1.ok){ logLine('✅ تم استيراد ' + parsedStudents.length + ' طالب بنجاح إلى البين الجديد', 'ok'); }
+    else{ logLine('❌ فشل استيراد الطلاب (كود ' + r1.status + ')', 'err'); }
+  }catch(e){ logLine('❌ خطأ شبكة عند استيراد الطلاب: ' + e.message, 'err'); }
+
+  await new Promise(function(res){ setTimeout(res, 300); });
+
+  try{
+    var r2 = await fetch('https://api.jsonbin.io/v3/b/'+NEW_BIN_REVIEWS, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+      body:JSON.stringify({reviews:parsedReviews, lastSaved:Date.now()})
+    });
+    if(r2.ok){ logLine('✅ تم استيراد ' + parsedReviews.length + ' مراجعة بنجاح إلى البين الجديد', 'ok'); }
+    else{ logLine('❌ فشل استيراد المراجعات (كود ' + r2.status + ')', 'err'); }
+  }catch(e){ logLine('❌ خطأ شبكة عند استيراد المراجعات: ' + e.message, 'err'); }
+
+  await new Promise(function(res){ setTimeout(res, 300); });
+
+  try{
+    var r3 = await fetch('https://api.jsonbin.io/v3/b/'+NEW_BIN_MONTHS, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-Access-Key':KEY},
+      body:JSON.stringify({months:{}})
+    });
+    if(r3.ok){ logLine('✅ تم تأكيد خريطة الأسابيع فاضية وجاهزة للبدء من جديد', 'ok'); }
+    else{ logLine('❌ فشل تأكيد خريطة الأسابيع (كود ' + r3.status + ')', 'err'); }
+  }catch(e){ logLine('❌ خطأ شبكة عند تأكيد الخريطة: ' + e.message, 'err'); }
+
+  logLine('━━━━━━━━━━━━━━━━━━━━', '');
+  logLine('🎉 انتهى الاستيراد. الخطوة التالية: رفع ملف المنظومة الجديد المربوط بهذه البينات.', 'ok');
+}
+</script>
+</body>
+</html>
