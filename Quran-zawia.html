@@ -1725,10 +1725,10 @@ function retryOrGiveUp(ts, attempt){
 
 // مزامنة لحظية — يُنفَّذ عند أي تغيير من أي جهاز
 // ==================== إعدادات JSONBin المقسّمة ====================
-window._BIN_STUDENTS = '6a33d338da38895dfed694fb';
-window._BIN_REVIEWS  = '6a33d361da38895dfed695d3';
+window._BIN_STUDENTS = '6a424de0da38895dfe0f644f';
+window._BIN_REVIEWS  = '6a424dd8f5f4af5e2940f721';
 window._BIN_OLD      = '6a2415b2f5f4af5e29c244ff'; // البين الكبير القديم (للنقل التلقائي مرة واحدة)
-window._BIN_MONTHS   = '6a36beaaf5f4af5e2914ebda'; // بين توجيه الأشهر المركزي - مشترك بين كل الأجهزة
+window._BIN_MONTHS   = '6a424dd1f5f4af5e2940f703'; // بين توجيه الأسابيع المركزي - مشترك بين كل الأجهزة
 window._KEY = '$2a$10$TSBPfwW63jrUrgdbr1frrOg81une.Ok.EFwm5wl.CApGXqUqVMUfC';
 
 // كل شهر بياناته في بين خاص بيه: نخزن خريطة { "2026-06": "binId", ... } في localStorage
@@ -1894,6 +1894,19 @@ function createMonthBin(monthKey, callback, freshMap){
 function initApp(){
   window._dirty=false;
 
+  // تصفير لمرة واحدة فقط: عند الانتقال للبينات الجديدة، نمسح أي بيانات محلية قديمة متبقية
+  // هذا يمنع ظهور أرقام قديمة (سجلات/طلاب من البينات السابقة) من كاش الهاتف قبل وصول البيانات الجديدة
+  if(localStorage.getItem('kq_fresh_start_v2') !== 'true'){
+    localStorage.removeItem('kq_students');
+    localStorage.removeItem('kq_logs');
+    localStorage.removeItem('kq_reviews');
+    localStorage.removeItem('kq_nextId');
+    localStorage.removeItem('kq_lastSaved');
+    localStorage.removeItem('kq_logs_bin_map');
+    localStorage.removeItem('kq_migrated_old_logs');
+    localStorage.setItem('kq_fresh_start_v2','true');
+  }
+
   // أولاً: تحميل البيانات المحلية فوراً لعرض شيء للمستخدم بدون انتظار
   students=JSON.parse(localStorage.getItem('kq_students')||'[]');
   logs=JSON.parse(localStorage.getItem('kq_logs')||'[]');
@@ -1965,42 +1978,11 @@ function initApp(){
       if(window._dirty) save(); // يرفع أي دمج محلي جديد فوراً لتصل لباقي الأجهزة
     });
 
-    // ثالثاً: بعد الطلاب نجيب السجلات (بتأخير عشان ما يتعارضوا)
+    // ثالثاً: السجلات تبدأ من جديد بالكامل (تم الانتقال لبينات جديدة نظيفة عبر أداة الاستيراد)
+    // تعطيل النقل التلقائي القديم نهائياً لمنع عودة أي بيانات أو تكرار قديم
     setTimeout(function(){
-      var migrated = localStorage.getItem('kq_migrated_old_logs');
-      if(!migrated){
-        // نجيب البين القديم لنقل بياناته (مرة واحدة فقط)
-        fetch('https://api.jsonbin.io/v3/b/'+window._BIN_OLD+'/latest',{
-          headers:{'X-Access-Key':window._KEY}
-        })
-        .then(function(r){ return r.ok?r.json():{record:{}}; })
-        .catch(function(){ return {record:{}}; })
-        .then(function(dOld){
-          var oldLogs = (dOld.record||{}).logs || [];
-          if(oldLogs.length){
-            showToast('⏳ نقل البيانات القديمة... لا تغلق الصفحة');
-            // نحفظ السجلات القديمة محلياً أولاً كنسخة احتياطية
-            logs = oldLogs;
-            localStorage.setItem('kq_logs', JSON.stringify(logs));
-            renderHome();
-            // ثم ننقلها للبينات الشهرية تدريجياً
-            migrateOldLogsToMonthlyBins(oldLogs, function(allSucceeded){
-              if(allSucceeded){
-                localStorage.setItem('kq_migrated_old_logs','true');
-                showToast('✅ تم نقل البيانات القديمة بنجاح');
-              } else {
-                // فشل بعض الشهور — لا نعلّم النقل كمكتمل، نحاول تلقائياً المرة الجاية
-                showToast('⚠️ فشل نقل بعض السجلات — سيُعاد المحاولة تلقائياً');
-              }
-              loadCurrentMonthLogs();
-            });
-          } else {
-            loadCurrentMonthLogs();
-          }
-        });
-      } else {
-        loadCurrentMonthLogs();
-      }
+      localStorage.setItem('kq_migrated_old_logs','true'); // نمنع أي محاولة نقل تلقائي من البين القديم
+      loadCurrentMonthLogs();
     }, 1000); // ننتظر ثانية بعد تحميل الطلاب
 
     showToast('☁️ تم الاتصال بـ JSONBin');
